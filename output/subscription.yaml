@@ -1,1 +1,21 @@
-proxies: []
+proxies:
+- name: example.com
+  type: vless
+  server: example.com
+  port: 443
+  uuid: abc123
+  tls: true
+  servername: example.com
+- name: speedtest.example.net
+  type: vless
+  server: speedtest.example.net
+  port: 443
+  uuid: def456
+  tls: true
+  servername: speedtest.example.net
+- name: example.org
+  type: trojan
+  server: example.org
+  port: 443
+  password: secret-pass
+  tls: true

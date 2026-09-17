@@ -1,3 +1,36 @@
 {
-  "outbounds": []
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "example.com",
+      "server": "example.com",
+      "server_port": 443,
+      "uuid": "abc123",
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com"
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "speedtest.example.net",
+      "server": "speedtest.example.net",
+      "server_port": 443,
+      "uuid": "def456",
+      "tls": {
+        "enabled": true,
+        "server_name": "speedtest.example.net"
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "example.org",
+      "server": "example.org",
+      "server_port": 443,
+      "password": "secret-pass",
+      "tls": {
+        "enabled": true
+      }
+    }
+  ]
 }

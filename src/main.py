@@ -12,7 +12,8 @@ from src.parser.parser import parse_sources
 
 def build(config_path: str = "config.yaml") -> int:
     config = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
-    proxies = parse_sources(config.get("sources", []))
+    freshness_days = int(config.get("freshness_days", 7))
+    proxies = parse_sources(config.get("sources", []), freshness_days=freshness_days)
     check = config.get("check", {})
     if check.get("enabled"):
         check_config = CheckConfig(check.get("timeout_seconds", 5), check.get("urls", []))
