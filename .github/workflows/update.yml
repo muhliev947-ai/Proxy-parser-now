@@ -12,14 +12,31 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e .
-      - run: python -m src.main --verbose
-      - run: mkdir -p docs && cp output/subscription.* docs/
-      - uses: stefanzweifel/git-auto-commit-action@v5
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Build subscriptions
+        run: python -m src.main --config config.yaml --verbose
+
+      - name: Publish generated files to docs
+        run: |
+          mkdir -p docs
+          cp -f output/subscription.yaml docs/subscription.yaml
+          cp -f output/subscription.json docs/subscription.json
+          touch docs/.nojekyll
+
+      - name: Commit generated files
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update subscriptions"
-          file_pattern: output/* docs/*
+          file_pattern: "output/* docs/*"
