@@ -1,0 +1,26 @@
+sources:
+  # URLs may point to raw text, Base64, Clash YAML, or Sing-box JSON.
+  - https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt
+  - https://raw.githubusercontent.com/Alvin9999/pac2/master/clash.meta.yaml
+  - https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt
+  - https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/clash.yml
+  - https://raw.githubusercontent.com/zhangkaiyulw/Proxy-List/main/all_proxies.txt
+  - https://raw.githubusercontent.com/ssrsub/ssr/master/ssrsub
+  - https://raw.githubusercontent.com/Leon406/SubCrawler/main/sub/share/clash.yml
+  - https://raw.githubusercontent.com/ProxyToolBox/ProxyToolBox/main/all.txt
+  - https://raw.githubusercontent.com/anaer/Sub/main/subscribe/clash.yml
+  - https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Proxy/Proxy.yaml
+
+countries: []          # Empty means any country.
+types: [vless, vmess, trojan, shadowsocks, hysteria2]
+protocols: []          # reality, xhttp, grpc, ws, etc.
+min_speed_kbps: 200    # Keep only reasonably fast proxies.
+check:
+  enabled: true         # Enable network checks to drop dead nodes.
+  timeout_seconds: 4
+  concurrency: 8
+  urls: [https://www.gstatic.com/generate_204, https://cp.cloudflare.com/generate_204]
+output:
+  directory: output
+  formats: [clash, singbox]
+  include_unchecked: false

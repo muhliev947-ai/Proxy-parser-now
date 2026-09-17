@@ -1,0 +1,2 @@
+[console_scripts]
+proxy-builder = src.main:main
