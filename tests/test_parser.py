@@ -55,3 +55,12 @@ def test_parse_sources_from_github_repo(monkeypatch):
     proxies = parse_sources(["github:demo/repo"], freshness_days=30)
     assert len(proxies) == 1
     assert proxies[0].server == "example.com"
+
+
+def test_parse_sources_uses_fallback_when_sources_fail(tmp_path):
+    fallback = tmp_path / "fallback.txt"
+    fallback.write_text("vless://abc@example.com:443?security=tls&sni=example.com#fallback", encoding="utf-8")
+
+    proxies = parse_sources(["https://bad.example.invalid/source.txt"], fallback_file=str(fallback))
+    assert len(proxies) == 1
+    assert proxies[0].server == "example.com"

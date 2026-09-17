@@ -11,7 +11,7 @@ import yaml
 from .model import ProxyConfig
 
 LOG = logging.getLogger(__name__)
-SUPPORTED = {"vless", "vmess", "trojan", "ss", "shadowsocks", "hy2", "hysteria2"}
+SUPPORTED = {"vless", "vmess", "trojan", "ss", "shadowsocks", "hy2", "hysteria2", "http", "https", "socks", "socks4", "socks5"}
 
 
 def _query_value(query: dict[str, list[str]], key: str) -> str | None:
@@ -19,9 +19,12 @@ def _query_value(query: dict[str, list[str]], key: str) -> str | None:
 
 
 def parse_uri(value: str) -> ProxyConfig | None:
-    parsed = urlparse(value.strip())
+    raw = value.strip()
+    if not raw:
+        return None
+    parsed = urlparse(raw)
     scheme = parsed.scheme.lower()
-    if scheme not in SUPPORTED:
+    if scheme not in SUPPORTED and not raw.count(":"):
         return None
     query = parse_qs(parsed.query)
     params = {key: unquote(values[0]) for key, values in query.items() if values}
@@ -29,7 +32,7 @@ def parse_uri(value: str) -> ProxyConfig | None:
     password = unquote(parsed.password or "")
     if scheme == "vmess":
         try:
-            decoded = base64.b64decode(value.split("://", 1)[1] + "===").decode()
+            decoded = base64.b64decode(raw.split("://", 1)[1] + "===").decode()
             return _from_mapping(json.loads(decoded), "vmess")
         except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
             return None
@@ -43,6 +46,17 @@ def parse_uri(value: str) -> ProxyConfig | None:
                                name=params.get("remarks", ""))
         except (ValueError, UnicodeDecodeError):
             return None
+    if scheme in {"http", "https", "socks", "socks4", "socks5"}:
+        if not parsed.hostname or not parsed.port:
+            return None
+        return ProxyConfig(
+            scheme, parsed.hostname, parsed.port,
+            name=params.get("remarks", parsed.hostname),
+            password=password or user or None,
+            method=params.get("method") or ("socks5" if scheme.startswith("socks") else "http"),
+            tls=scheme == "https" or params.get("tls", "").lower() == "true",
+            raw=params,
+        )
     if not parsed.hostname or not parsed.port:
         return None
     config = ProxyConfig(
@@ -113,7 +127,23 @@ def parse_text(text: str) -> list[ProxyConfig]:
     except yaml.YAMLError as exc:
         LOG.debug("Not YAML: %s", exc)
     for line in text.splitlines():
-        parsed = parse_uri(line.strip().strip('"\','))
+        value = line.strip().strip('"\',')
+        if not value:
+            continue
+        if value.startswith(("http://", "https://", "socks://", "socks4://", "socks5://")):
+            parsed = parse_uri(value)
+            if parsed:
+                result.append(parsed)
+                continue
+        if ":" in value and value.count(":") >= 1:
+            host_port = value.rsplit(":", 1)
+            if len(host_port) == 2 and host_port[0] and host_port[1].isdigit():
+                host = host_port[0].strip()
+                port = int(host_port[1])
+                if 1 <= port <= 65535:
+                    result.append(ProxyConfig("http", host, port, name=f"http-{host}:{port}"))
+                    continue
+        parsed = parse_uri(value)
         if parsed:
             result.append(parsed)
     return result
@@ -187,7 +217,7 @@ def _github_repo_files(repo_source: str, freshness_days: int = 7, timeout: int =
     return _collect()
 
 
-def parse_sources(sources: list[str], timeout: int = 15, freshness_days: int = 7) -> list[ProxyConfig]:
+def parse_sources(sources: list[str], timeout: int = 15, freshness_days: int = 7, fallback_file: str | None = None) -> list[ProxyConfig]:
     result: list[ProxyConfig] = []
     for source in sources:
         try:
@@ -211,6 +241,13 @@ def parse_sources(sources: list[str], timeout: int = 15, freshness_days: int = 7
             LOG.info("Parsed proxies from %s", source)
         except (OSError, ValueError) as exc:
             LOG.warning("Could not read source %s: %s", source, exc)
+    if not result and fallback_file:
+        try:
+            fallback_text = Path(fallback_file).read_text(encoding="utf-8")
+            result.extend(parse_text(fallback_text))
+            LOG.warning("No live proxies found; used fallback file %s", fallback_file)
+        except OSError as exc:
+            LOG.warning("Could not read fallback file %s: %s", fallback_file, exc)
     unique: dict[tuple[str, str, int], ProxyConfig] = {}
     for proxy in result:
         unique[(proxy.type, proxy.server, proxy.port)] = proxy

@@ -1,20 +1,27 @@
+fallback_file: sample_proxies.txt
+
 sources:
-  # Production-safe setup: prefer GitHub repo sources, but keep a local fallback so the build
-  # does not fail when the public feeds are blocked or are temporarily unavailable.
-  - github:hiztin/VLESS-PO-GRIBI
-  - github:mahdibland/V2RayAggregator
-  - github:Alvin9999/pac2
-  - github:peasoft/NoMoreWalls
-  - github:zhangkaiyulw/Proxy-List
+  - https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=10000&country=all&ssl=all&anonymity=all
+  - https://api.proxyscrape.com/?request=getproxies&proxytype=socks5&timeout=10000&country=all&ssl=all&anonymity=all
+  - https://www.proxy-list.download/api/v1/get?type=http
+  - https://www.proxy-list.download/api/v1/get?type=https
+  - https://www.proxy-list.download/api/v1/get?type=socks5
+  - https://www.proxyscan.io/api/proxy?format=txt&country=all
+  - https://www.freeproxy.world/?product=basic&protocol=http&anonymity=elite
+  - https://www.freeproxy.world/?product=basic&protocol=socks5&anonymity=elite
+  - https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt
+  - https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt
+  - https://raw.githubusercontent.com/Alvin9999/pac2/master/clash.meta.yaml
+  - https://raw.githubusercontent.com/zhangkaiyulw/Proxy-List/main/all_proxies.txt
   - sample_proxies.txt
 
 freshness_days: 7
-countries: []          # Empty means any country.
-types: [vless, vmess, trojan, shadowsocks, hysteria2]
-protocols: []          # reality, xhttp, grpc, ws, etc.
-min_speed_kbps: 0      # keep valid entries in this environment
+countries: []
+types: [http, https, socks, socks4, socks5, vless, vmess, trojan, ss, hysteria2]
+protocols: []
+min_speed_kbps: 0
 check:
-  enabled: false        # disabled by default so the build remains deterministic
+  enabled: false
   timeout_seconds: 5
   concurrency: 8
   urls: [https://www.gstatic.com/generate_204, https://cp.cloudflare.com/generate_204]

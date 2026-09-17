@@ -14,8 +14,9 @@ def _clash_proxy(proxy: ProxyConfig) -> dict[str, Any]:
         item["password"] = proxy.password
     if proxy.type == "ss":
         item.update(cipher=proxy.method, password=proxy.password)
-    if proxy.type == "hy2":
-        item["password"] = proxy.password
+    if proxy.type in {"hy2", "http", "socks", "socks4", "socks5"}:
+        if proxy.password:
+            item["password"] = proxy.password
     if proxy.tls:
         item["tls"] = True
     for key, value in (("flow", proxy.flow), ("servername", proxy.sni), ("network", proxy.network), ("ws-opts", {"path": proxy.path, "headers": {"Host": proxy.host}} if proxy.network == "ws" else None)):
@@ -36,6 +37,8 @@ def _singbox_proxy(proxy: ProxyConfig) -> dict[str, Any]:
         item["password"] = proxy.password
     if proxy.method:
         item["method"] = proxy.method
+    if proxy.type in {"socks", "socks5"}:
+        item["version"] = "5"
     if proxy.tls:
         item["tls"] = {"enabled": True, **({"server_name": proxy.sni} if proxy.sni else {})}
     return item
