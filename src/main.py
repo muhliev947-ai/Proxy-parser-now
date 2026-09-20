@@ -9,6 +9,8 @@ from src.checker.checker import CheckConfig, check_proxy, load_hiddify_tags
 from src.generator.generators import sort_by_latency, to_clash, to_singbox
 from src.parser.parser import parse_sources, to_plaintext_uris
 
+LOG = logging.getLogger(__name__)
+
 
 def build(config_path: str = "config.yaml") -> int:
     config = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
@@ -18,7 +20,7 @@ def build(config_path: str = "config.yaml") -> int:
     max_candidates = int(config.get("check", {}).get("max_candidates", 500))
     if max_candidates > 0:
         proxies = proxies[:max_candidates]
-        logging.info("Checking up to %d candidates", len(proxies))
+        LOG.info("Checking up to %d candidates", len(proxies))
     output = Path(config.get("output", {}).get("directory", "output"))
     output.mkdir(parents=True, exist_ok=True)
     docs = Path("docs")
@@ -52,18 +54,18 @@ def build(config_path: str = "config.yaml") -> int:
     formats = config.get("output", {}).get("formats", ["plaintext"])
     if config.get("output", {}).get("sort_by_latency"):
         proxies = sort_by_latency(proxies)
-        logging.info("Sorted %d proxies by latency", len(proxies))
+        LOG.info("Sorted %d proxies by latency", len(proxies))
     if "plaintext" in formats:
         lines = to_plaintext_uris(proxies)
         (output / "subscription.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
         if not lines:
-            logging.warning("No valid encrypted proxy URIs found")
+            LOG.warning("No valid encrypted proxy URIs found")
         (docs / "subscription.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
     if "clash" in formats:
         (output / "subscription.yaml").write_text(to_clash(proxies), encoding="utf-8")
     if "singbox" in formats:
         (output / "subscription.json").write_text(to_singbox(proxies), encoding="utf-8")
-    logging.info("Wrote %d proxies to %s", len(proxies), output)
+    LOG.info("Wrote %d proxies to %s", len(proxies), output)
     return len(proxies)
 
 

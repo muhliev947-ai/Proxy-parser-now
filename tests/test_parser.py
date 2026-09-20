@@ -93,7 +93,7 @@ def test_parse_text_rejects_placeholder_uris_and_keeps_valid_vless():
 
 def test_parse_text_decodes_base64_subscription_with_real_uri():
     base64_payload = base64.b64encode(
-        "ss://YWVzLTI1Ni1nY206c2VjdXJla2V5@192.0.2.2:8388#Node-2\n".encode()
+        b"ss://YWVzLTI1Ni1nY206c2VjdXJla2V5@192.0.2.2:8388#Node-2\n"
     ).decode()
     parsed = parse_text(base64_payload)
     assert len(parsed) == 1

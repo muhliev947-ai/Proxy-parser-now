@@ -97,7 +97,7 @@ def test_include_unchecked_publishes_unverified(tmp_path, monkeypatch):
     verified = _proxy("192.0.2.1", verified=True)
     unverified = _proxy("192.0.2.2")
 
-    count, text = _run(
+    count, _text = _run(
         tmp_path, monkeypatch, [verified, unverified],
         {"output": {"directory": str(tmp_path / "output"), "formats": ["plaintext"], "include_unchecked": True}},
     )
@@ -123,6 +123,6 @@ def test_empty_filters_keep_everything(tmp_path, monkeypatch):
     first = _proxy("192.0.2.1", "trojan", verified=True)
     second = _proxy("192.0.2.2", "vless", verified=True)
 
-    count, text = _run(tmp_path, monkeypatch, [first, second], {})
+    count, _text = _run(tmp_path, monkeypatch, [first, second], {})
 
     assert count == 2

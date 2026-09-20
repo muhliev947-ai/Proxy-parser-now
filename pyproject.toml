@@ -7,9 +7,18 @@ dependencies = ["PyYAML>=6.0"]
 
 [project.optional-dependencies]
 test = ["pytest>=8.0"]
+lint = ["ruff>=0.6"]
 
 [project.scripts]
 proxy-builder = "src.main:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "SIM", "RUF", "FURB", "LOG"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

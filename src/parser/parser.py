@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib.request import Request, urlopen
@@ -32,9 +32,7 @@ def _looks_like_placeholder(value: str | None) -> bool:
         return True
     if clean in {"uuid", "null", "none", "", "publickey", "placeholder", "abc123"}:
         return True
-    if any(fragment in clean for fragment in ("publickey", "placeholder", "abc123", "demo")):
-        return True
-    return False
+    return any(fragment in clean for fragment in ("publickey", "placeholder", "abc123", "demo"))
 
 
 def _should_skip_value(value: str) -> bool:
@@ -45,9 +43,7 @@ def _should_skip_value(value: str) -> bool:
         return True
     if "example.com" in lowered and ("pbk=" in lowered or "sid=" in lowered or "security=reality" in lowered or "publickey" in lowered or "#fallback" in lowered):
         return True
-    if "example.com" in lowered and "sni=example.com" in lowered and ("security=tls" in lowered or "security=reality" in lowered):
-        return True
-    return False
+    return "example.com" in lowered and "sni=example.com" in lowered and ("security=tls" in lowered or "security=reality" in lowered)
 
 
 def _is_real_proxy(proxy: ProxyConfig) -> bool:
@@ -68,9 +64,7 @@ def _is_real_proxy(proxy: ProxyConfig) -> bool:
         return False
     if proxy.name and _looks_like_placeholder(proxy.name):
         return False
-    if any(_is_placeholder_uri(str(value)) for value in (proxy.uuid, proxy.password, proxy.sni) if value):
-        return False
-    return True
+    return not any(_is_placeholder_uri(str(value)) for value in (proxy.uuid, proxy.password, proxy.sni) if value)
 
 
 def _is_placeholder_uri(value: str) -> bool:
@@ -230,7 +224,7 @@ def parse_text(text: str) -> list[ProxyConfig]:
             continue
         if _should_skip_value(value) or _is_placeholder_uri(value):
             continue
-        if not re.match(r"^(?:vless|vmess|ss|trojan|hy2|hysteria2)://", value, re.I):
+        if not re.match(r"^(?:vless|vmess|ss|trojan|hy2|hysteria2)://", value, re.IGNORECASE):
             continue
         parsed = parse_uri(value)
         if parsed:
@@ -251,10 +245,8 @@ def _read_json(url: str, timeout: int = 15) -> object:
 def _github_repo_files(repo_source: str, freshness_days: int = 7, timeout: int = 15) -> list[str]:
     repo_source = repo_source.removeprefix("github:")
     repo_source = repo_source.strip("/")
-    if repo_source.startswith("https://github.com/"):
-        repo_source = repo_source[len("https://github.com/"):]
-    if repo_source.startswith("http://github.com/"):
-        repo_source = repo_source[len("http://github.com/"):]
+    repo_source = repo_source.removeprefix("https://github.com/")
+    repo_source = repo_source.removeprefix("http://github.com/")
     repo_source = repo_source.strip("/")
     if repo_source.count("/") < 1:
         return []
@@ -300,10 +292,12 @@ def _github_repo_files(repo_source: str, freshness_days: int = 7, timeout: int =
             if not date_value:
                 continue
             try:
-                commit_time = datetime.fromisoformat(date_value.replace("Z", "+00:00")).astimezone(timezone.utc)
+                # Python 3.11+ parses the trailing "Z" directly, so no manual
+                # timezone replacement is needed here.
+                commit_time = datetime.fromisoformat(date_value).astimezone(UTC)
             except ValueError:
                 continue
-            if datetime.now(timezone.utc) - commit_time <= timedelta(days=freshness_days):
+            if datetime.now(UTC) - commit_time <= timedelta(days=freshness_days):
                 files.append(item["download_url"])
         return files
 

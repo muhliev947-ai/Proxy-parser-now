@@ -1,6 +1,5 @@
 import json
 import socket
-import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -73,7 +72,7 @@ def _verify_via_clash_api(proxy: ProxyConfig, config: CheckConfig) -> bool:
     tag = _HIDDIFY_TAG_INDEX.get((proxy.server, proxy.port)) or _proxy_tag(proxy)
     quoted_tag = urllib.parse.quote(tag, safe="")
     url = urllib.parse.quote(config.urls[0] if config.urls else "https://cp.cloudflare.com/generate_204", safe="")
-    secret = _HIDDIFY_SECRET if _HIDDIFY_SECRET else config.clash_api_secret
+    secret = _HIDDIFY_SECRET or config.clash_api_secret
     status, result = _api(config.clash_api_url, secret, f"/proxies/{quoted_tag}/delay?timeout=5000&url={url}")
     if status != 200:
         return False
@@ -111,7 +110,6 @@ def check_proxy(proxy: ProxyConfig, config: CheckConfig) -> ProxyConfig:
     A plain TCP connect cannot prove that UUID, TLS, Reality or WebSocket
     settings are valid, so the real handshake is delegated to sing-box.
     """
-    started = time.monotonic()
     try:
         with socket.create_connection((proxy.server, proxy.port), timeout=config.timeout_seconds):
             proxy.tcp_reachable = True

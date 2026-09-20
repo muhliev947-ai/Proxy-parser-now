@@ -14,9 +14,8 @@ def _clash_proxy(proxy: ProxyConfig) -> dict[str, Any]:
         item["password"] = proxy.password
     if proxy.type == "ss":
         item.update(cipher=proxy.method, password=proxy.password)
-    if proxy.type in {"hy2", "http", "socks", "socks4", "socks5"}:
-        if proxy.password:
-            item["password"] = proxy.password
+    if proxy.type in {"hy2", "http", "socks", "socks4", "socks5"} and proxy.password:
+        item["password"] = proxy.password
     if proxy.tls:
         item["tls"] = True
     for key, value in (("flow", proxy.flow), ("servername", proxy.sni), ("network", proxy.network), ("ws-opts", {"path": proxy.path, "headers": {"Host": proxy.host}} if proxy.network == "ws" else None)):
@@ -55,4 +54,4 @@ def sort_by_latency(proxies: list[ProxyConfig]) -> list[ProxyConfig]:
     means a faster node. Unverified nodes have no measurement and are pushed
     to the end while keeping their original relative order.
     """
-    return sorted(proxies, key=lambda proxy: proxy.speed_kbps if proxy.speed_kbps else -1, reverse=True)
+    return sorted(proxies, key=lambda proxy: proxy.speed_kbps or -1, reverse=True)
