@@ -70,6 +70,17 @@ check:
   timeout_seconds: 5
   concurrency: 8
   urls: [https://cp.cloudflare.com/generate_204]
+  # Пул рабочих узлов: проверка продолжается, пока не наберётся min_working_nodes
+  # живых узлов (или пока не кончатся кандидаты). Бесплатные прокси умирают за
+  # часы, поэтому один узел — хрупкая подписка.
+  min_working_nodes: 5
+  # Верхняя граница общего числа проверяемых кандидатов, чтобы мёртвая сеть
+  # не затянула прогон на часы. По умолчанию 4x от max_candidates.
+  max_total_candidates: 2000
+  # Финальная перепроверка топовых узлов прямо перед записью подписки:
+  # узел, живой минуту назад, мог уже умереть.
+  reverify_before_publish: true
+  reverify_top_n: 10
 output:
   directory: output
   formats: [plaintext]
