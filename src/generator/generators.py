@@ -46,3 +46,13 @@ def _singbox_proxy(proxy: ProxyConfig) -> dict[str, Any]:
 
 def to_singbox(proxies: list[ProxyConfig]) -> str:
     return json.dumps({"outbounds": [_singbox_proxy(proxy) for proxy in proxies]}, ensure_ascii=False, indent=2) + "\n"
+
+
+def sort_by_latency(proxies: list[ProxyConfig]) -> list[ProxyConfig]:
+    """Sort proxies by measured latency, fastest first.
+
+    speed_kbps is derived from the delay (8000 / delay), so a higher value
+    means a faster node. Unverified nodes have no measurement and are pushed
+    to the end while keeping their original relative order.
+    """
+    return sorted(proxies, key=lambda proxy: proxy.speed_kbps if proxy.speed_kbps else -1, reverse=True)

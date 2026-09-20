@@ -12,8 +12,12 @@ class ProxyConfig:
     password: str | None = None
     method: str | None = None
     tls: bool = False
+    security: str | None = None
     flow: str | None = None
     sni: str | None = None
+    fingerprint: str | None = None
+    encryption: str | None = None
+    mode: str | None = None
     network: str | None = None
     path: str | None = None
     host: str | None = None
@@ -23,6 +27,8 @@ class ProxyConfig:
     country: str | None = None
     speed_kbps: float | None = None
     available: bool | None = None
+    tcp_reachable: bool | None = None
+    verified: bool = False
 
     def __post_init__(self) -> None:
         self.type = self.type.lower().replace("shadowsocks", "ss").replace("hysteria2", "hy2")
@@ -31,6 +37,6 @@ class ProxyConfig:
 
     @property
     def protocol(self) -> str | None:
-        if self.reality:
+        if self.reality or self.security == "reality":
             return "reality"
         return self.network

@@ -4,3 +4,5 @@ Version: 0.1.0
 Summary: Collect, validate, filter and publish proxy subscriptions.
 Requires-Python: >=3.11
 Requires-Dist: PyYAML>=6.0
+Provides-Extra: test
+Requires-Dist: pytest>=8.0; extra == "test"

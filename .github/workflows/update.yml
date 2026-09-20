@@ -23,20 +23,51 @@ jobs:
       - name: Install project
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e ".[test]"
+
+      - name: Validate parser
+        run: |
+          python -m compileall -q src tests
+          python -m pytest -q
 
       - name: Build subscriptions
-        run: python -m src.main --config config.yaml --verbose
+        run: timeout 15m python -m src.main --config config.yaml --verbose
 
       - name: Publish generated files to docs
         run: |
           mkdir -p docs
-          cp -f output/subscription.yaml docs/subscription.yaml
-          cp -f output/subscription.json docs/subscription.json
+          ! grep -Eq '^(proxies:|- name:|  type:|  server:|  port:)' output/subscription.txt
+          if [[ ! -s output/subscription.txt ]]; then
+            echo "No valid encrypted proxy URIs found; publishing an empty subscription."
+          fi
+          rm -f docs/subscription.yaml docs/subscription.json
+          cp -f output/subscription.txt docs/subscription.txt
           touch docs/.nojekyll
 
       - name: Commit generated files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update subscriptions"
-          file_pattern: "output/* docs/*"
+          file_pattern: "output/subscription.txt docs/subscription.txt docs/subscription.yaml docs/subscription.json docs/.nojekyll"
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Upload docs artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

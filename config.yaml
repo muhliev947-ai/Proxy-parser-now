@@ -1,31 +1,68 @@
 fallback_file: sample_proxies.txt
 
+# Публичные источники. raw.githubusercontent.com недоступен из этой сети,
+# поэтому используется зеркало jsDelivr (cdn.jsdelivr.net/gh/<owner>/<repo>@<branch>/<path>).
 sources:
-  - https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=10000&country=all&ssl=all&anonymity=all
-  - https://api.proxyscrape.com/?request=getproxies&proxytype=socks5&timeout=10000&country=all&ssl=all&anonymity=all
-  - https://www.proxy-list.download/api/v1/get?type=http
-  - https://www.proxy-list.download/api/v1/get?type=https
-  - https://www.proxy-list.download/api/v1/get?type=socks5
-  - https://www.proxyscan.io/api/proxy?format=txt&country=all
-  - https://www.freeproxy.world/?product=basic&protocol=http&anonymity=elite
-  - https://www.freeproxy.world/?product=basic&protocol=socks5&anonymity=elite
-  - https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt
-  - https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt
-  - https://raw.githubusercontent.com/Alvin9999/pac2/master/clash.meta.yaml
-  - https://raw.githubusercontent.com/zhangkaiyulw/Proxy-List/main/all_proxies.txt
+  # Рабочий источник: узлы прошли реальную проверку через запущенный Hiddify
+  # (sing-box 1.13.1, Clash API). raw.githubusercontent.com и gh-proxy.com
+  # недоступны из этой сети, поэтому используется зеркало jsDelivr.
+  - https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray
+  # Верифицированные узлы (реальный проксированный запрос прошел проверку во всех запусках)
+  - https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt
+  - https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt
+  # Крупные агрегаторы, обновляемые автоматически
+  - https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/subscriptions/mix-normal.txt
+  - https://cdn.jsdelivr.net/gh/teknovpnhub/v2ray-subscription@main/servers.txt
+  - https://cdn.jsdelivr.net/gh/idtheo/V2Ray-CleanIPs-Servers@main/shield.txt
+  - https://cdn.jsdelivr.net/gh/RKPchannel/RKP_bypass_configs@main/sources.txt
+  # Агрегаторы общего назначения
+  - https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt
+  - https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/Eternity.txt
+  - https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt
+  - https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt
+  - https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt
+  - https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub2.txt
+  # Разбивка по протоколам (MustafaBaqer/VestraNet-Nodes)
+  - https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vless.txt
+  - https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vmess.txt
+  - https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/trojan.txt
+  - https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/shadowsocks.txt
+  - https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/hy2.txt
+  # Разбивка по протоколам (Leon406/SubCrawler)
+  - https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/v2
+  - https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless
+  - https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/tr
+  - https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/ss
+  - https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/hysteria2
+  # Прочие публичные подписки
+  - https://cdn.jsdelivr.net/gh/ts-sf/fly@main/v2
+  - https://cdn.jsdelivr.net/gh/ermaozi/get_subscribe@main/subscribe/v2ray.txt
+  - https://cdn.jsdelivr.net/gh/Pawdroid/Free-servers@main/sub
+  - https://cdn.jsdelivr.net/gh/ripaojiedian/freenode@main/sub
   - sample_proxies.txt
 
 freshness_days: 7
 countries: []
-types: [http, https, socks, socks4, socks5, vless, vmess, trojan, ss, hysteria2]
+types: [vless, vmess, trojan, ss, hy2]
 protocols: []
 min_speed_kbps: 0
 check:
-  enabled: false
+  enabled: true
+  require_protocol_handshake: true
+  # Реальная проверка через Clash API запущенного Hiddify (127.0.0.1:16756).
+  # Если Hiddify не запущен, узлы не публикуются как рабочие.
+  clash_api_url: http://127.0.0.1:16756
+  clash_api_secret: MkueO0owlZajEXK7
+  # Проверка реального HTTP-статуса через SOCKS-инбаунд Hiddify.
+  # Clash API отдаёт задержку даже для 404/500, поэтому статус проверяется отдельно.
+  socks_proxy_url: socks5h://127.0.0.1:12334
+  expected_status: 204
+  max_candidates: 500
   timeout_seconds: 5
   concurrency: 8
-  urls: [https://www.gstatic.com/generate_204, https://cp.cloudflare.com/generate_204]
+  urls: [https://cp.cloudflare.com/generate_204]
 output:
   directory: output
-  formats: [clash, singbox]
-  include_unchecked: true
+  formats: [plaintext]
+  sort_by_latency: true   # сортировка узлов по задержке (быстрые первыми)
+  include_unchecked: false
