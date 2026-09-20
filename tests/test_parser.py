@@ -249,3 +249,52 @@ def test_hysteria2_reality_round_trip_preserves_security_mode():
 def test_shadowsocks_alias_normalises_to_ss():
     proxy = parse_uri("shadowsocks://550e8400-e29b-41d4-a716-446655440000@192.0.2.14:8388#node")
     assert proxy is None or proxy.type == "ss"
+
+
+def test_broken_yaml_entry_does_not_discard_whole_source():
+    """A malformed flow-mapping must not cost us the valid entries around it.
+
+    Aggregators such as mfuu/v2ray emit lines with nested quotes inside a name,
+    e.g. name: "FR-"2001:bc8:...:"-0055". Before the block-scan fallback this
+    made yaml.safe_load() raise and the whole source was dropped.
+    """
+    document = (
+        "proxies:\n"
+        '- {name: ok-1, server: 192.0.2.10, port: 443, type: trojan, password: secret}\n'
+        '- {name: "FR-"2001:bc8:32d7:225::3"-0055", server: "2001:bc8:32d7:225::3", port: 55009, type: vmess, uuid: cd80d0a4-a8ef-4492-b9}\n'
+        '- {name: ok-2, server: 192.0.2.11, port: 443, type: trojan, password: secret}\n'
+    )
+    proxies = parse_text(document)
+    servers = sorted(proxy.server for proxy in proxies)
+    assert servers == ["192.0.2.10", "192.0.2.11"]
+
+
+def test_block_mapping_yaml_recovers_valid_entries():
+    """The multi-line `- name:` shape is recovered the same way."""
+    document = (
+        "proxies:\n"
+        "  - name: ok-1\n"
+        "    type: trojan\n"
+        "    server: 192.0.2.20\n"
+        "    port: 443\n"
+        "    password: secret\n"
+        "  - name: broken\n"
+        "    type: vless\n"
+        "    server: [unclosed\n"
+        "  - name: ok-2\n"
+        "    type: trojan\n"
+        "    server: 192.0.2.21\n"
+        "    port: 443\n"
+        "    password: secret\n"
+    )
+    proxies = parse_text(document)
+    servers = sorted(proxy.server for proxy in proxies)
+    assert servers == ["192.0.2.20", "192.0.2.21"]
+
+
+def test_yaml_port_with_trailing_junk_falls_back_safely():
+    """Sanitising quotes can leave artefacts like port: 443? — it must not crash."""
+    document = "proxies:\n- {name: ok, server: 192.0.2.30, port: 443?, type: trojan, password: secret}\n"
+    proxies = parse_text(document)
+    assert len(proxies) == 1
+    assert proxies[0].port == 443

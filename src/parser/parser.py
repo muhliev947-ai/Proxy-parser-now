@@ -55,7 +55,10 @@ def _is_real_proxy(proxy: ProxyConfig) -> bool:
     if _is_placeholder_uri(host):
         return False
     if proxy.type in {"vless", "vmess"} and (
-        not proxy.uuid or not UUID_PATTERN.fullmatch(proxy.uuid) or _looks_like_placeholder(proxy.uuid)
+        not proxy.uuid
+        or not isinstance(proxy.uuid, str)
+        or not UUID_PATTERN.fullmatch(proxy.uuid)
+        or _looks_like_placeholder(proxy.uuid)
     ):
         return False
     if proxy.type in {"trojan", "hy2", "ss", "shadowsocks"} and (not proxy.password or _looks_like_placeholder(proxy.password)):
@@ -166,6 +169,12 @@ def parse_uri(value: str) -> ProxyConfig | None:
 
 
 def _from_mapping(item: dict, fallback_type: str | None = None) -> ProxyConfig | None:
+    # A single-line flow mapping parsed on its own (e.g. "{name: ..., server: ...}"
+    # without the leading "- ") comes back as a one-element list, not a dict.
+    if isinstance(item, list):
+        item = item[0] if item and isinstance(item[0], dict) else None
+    if not isinstance(item, dict):
+        return None
     kind = str(item.get("type", fallback_type or "")).lower()
     if kind not in SUPPORTED or not item.get("server"):
         return None
@@ -173,7 +182,13 @@ def _from_mapping(item: dict, fallback_type: str | None = None) -> ProxyConfig |
     if isinstance(tls, dict):
         tls = tls.get("enabled", False)
     reality = item.get("reality") or (item.get("tls", {}).get("reality") if isinstance(item.get("tls"), dict) else None)
-    return ProxyConfig(kind, str(item["server"]), int(item.get("port", 443)),
+    try:
+        # Port values from sanitised YAML may carry trailing junk ("443?"), so
+        # only the leading digits are used and anything else falls back to 443.
+        port = int(re.sub(r"[^0-9]", "", str(item.get("port", 443))) or 443)
+    except (TypeError, ValueError):
+        port = 443
+    return ProxyConfig(kind, str(item["server"]), port,
                        name=str(item.get("name", item.get("server"))), uuid=item.get("uuid"),
                        password=item.get("password"), method=item.get("cipher", item.get("method")),
                        tls=bool(tls), flow=item.get("flow"), sni=item.get("servername", item.get("sni")),
@@ -194,6 +209,100 @@ def _decode_payload(text: str) -> str:
     return text
 
 
+def _parse_yaml_proxies(text: str) -> list[ProxyConfig]:
+    """Parse a Clash YAML document, tolerating malformed individual entries.
+
+    Aggregators sometimes emit a broken flow-mapping (e.g. an unquoted IPv6
+    address inside a name). A single such line used to make yaml.safe_load()
+    raise and discard the whole source, which is how the subscription ended
+    up with a single node. Fall back to a line-wise block scan that keeps
+    every valid entry around the broken one.
+    """
+    try:
+        document = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        LOG.debug("YAML document is malformed, falling back to block scan: %s", exc)
+        return _parse_yaml_blocks(text)
+    if not isinstance(document, dict):
+        return []
+    items = document.get("proxies", [])
+    if not isinstance(items, list):
+        return []
+    result: list[ProxyConfig] = []
+    for item in items:
+        if isinstance(item, dict):
+            parsed = _from_mapping(item)
+            if parsed and _is_real_proxy(parsed):
+                result.append(parsed)
+    return result
+
+
+def _parse_yaml_blocks(text: str) -> list[ProxyConfig]:
+    """Recover valid `proxies:` entries from a document yaml.safe_load() rejects.
+
+    Two shapes are handled, because both appear in the wild:
+    - one flow mapping per line: `- {name: ..., server: ...}`
+    - one block mapping per entry spanning several lines, starting with
+      `- name: ...` and ending at the next top-level dash.
+    """
+    blocks: list[str] = []
+    current: list[str] = []
+    in_flow = False
+    for line in text.splitlines():
+        if re.match(r"^\s*-\s*\{", line):
+            # A flow mapping is complete on its own line: close any open block
+            # mapping and treat this line as its own block.
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+            blocks.append(line)
+            in_flow = True
+            continue
+        if re.match(r"^\s*-\s+name\s*:", line):
+            if current:
+                blocks.append("\n".join(current))
+            current = [line]
+            in_flow = False
+            continue
+        if current and not in_flow:
+            current.append(line)
+    if current:
+        blocks.append("\n".join(current))
+    result: list[ProxyConfig] = []
+    for block in blocks:
+        try:
+            item = yaml.safe_load(block)
+        except yaml.YAMLError:
+            # Aggregators sometimes produce unbalanced quotes inside a value,
+            # e.g. name: "FR-"2001:bc8:...:"-0055". Strip the inner quotes and
+            # retry, so one malformed node does not cost us the whole source.
+            try:
+                item = yaml.safe_load(_repair_yaml_quotes(block))
+            except yaml.YAMLError:
+                continue
+        if isinstance(item, list):
+            item = item[0] if item and isinstance(item[0], dict) else None
+        if isinstance(item, dict):
+            parsed = _from_mapping(item)
+            if parsed and _is_real_proxy(parsed):
+                result.append(parsed)
+    return result
+
+
+def _repair_yaml_quotes(line: str) -> str:
+    """Make a single-line flow mapping parseable despite aggregator quirks.
+
+    Two defects are handled, both seen in the wild:
+    - nested quotes inside a value, e.g. name: "FR-"2001:bc8:...:"-0055"
+    - a scalar polluted with punctuation, e.g. port: 443?
+    Only the inner quotes/punctuation are touched; the keys that matter for the
+    subscription (server, port, uuid, password) stay intact.
+    """
+    repaired = re.sub(r'(:\s*)"([^"]*"[^"]*)"', r"\1\2", line)
+    repaired = re.sub(r"(:\s*)([0-9]+)[^,}]*", r"\1\2", repaired)
+    return repaired
+
+
 def parse_text(text: str) -> list[ProxyConfig]:
     text = _decode_payload(text)
     result: list[ProxyConfig] = []
@@ -208,16 +317,9 @@ def parse_text(text: str) -> list[ProxyConfig]:
             return result
     except json.JSONDecodeError:
         pass
-    try:
-        document = yaml.safe_load(text)
-        for item in document.get("proxies", []) if isinstance(document, dict) else []:
-            parsed = _from_mapping(item)
-            if parsed and _is_real_proxy(parsed):
-                result.append(parsed)
-        if result:
-            return result
-    except yaml.YAMLError as exc:
-        LOG.debug("Not YAML: %s", exc)
+    result = _parse_yaml_proxies(text)
+    if result:
+        return result
     for line in text.splitlines():
         value = line.strip().strip('"\',')
         if not value:

@@ -39,6 +39,15 @@ sources:
   - https://cdn.jsdelivr.net/gh/ermaozi/get_subscribe@main/subscribe/v2ray.txt
   - https://cdn.jsdelivr.net/gh/Pawdroid/Free-servers@main/sub
   - https://cdn.jsdelivr.net/gh/ripaojiedian/freenode@main/sub
+  # Новые агрегаторы (верифицированы: парсятся и отдают узлы)
+  # mfuu/v2ray — крупный автообновляемый Clash-YAML (1015 узлов: ss/vmess/trojan).
+  # Файл содержит битые flow-mappings с вложенными кавычками, поэтому парсер
+  # теперь восстанавливает валидные записи построчно, а не отбрасывает весь файл.
+  - https://cdn.jsdelivr.net/gh/mfuu/v2ray@master/sub.yaml
+  # free18/v2ray — Base64-подписка (vless/trojan), обновляется автоматически.
+  - https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt
+  # freefq/free — компактная Base64-подписка (ss).
+  - https://cdn.jsdelivr.net/gh/freefq/free@master/v2
   - sample_proxies.txt
 
 freshness_days: 7
