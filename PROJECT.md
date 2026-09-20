@@ -27,13 +27,14 @@
 | Язык программирования | Python 3.11+ |
 | Зависимости | PyYAML (единственная внешняя библиотека) |
 | Тестирование | pytest |
+| Линтинг и форматирование | ruff (dev-зависимость, extra `lint`) |
 | Сборка | pyproject.toml (PEP 621) |
 | CI/CD | GitHub Actions |
 | Хостинг | GitHub Pages |
 | Проверка прокси | Hiddify / sing-box 1.13.1 (Clash API) |
 | Виртуальное окружение | venv |
 
-**Ключевая особенность:** проект использует только стандартную библиотеку Python плюс PyYAML. Никаких тяжёлых фреймворков.
+**Ключевая особенность:** проект использует только стандартную библиотеку Python плюс PyYAML. Никаких тяжёлых фреймворков: сетевой ввод — `urllib`, проверка сокетов — `socket`, параллелизм — `ThreadPoolExecutor`.
 
 ---
 
@@ -66,7 +67,10 @@ Proxy-parser-now/
 │       └── generators.py          # Генерация Clash YAML и Sing-box JSON
 │
 ├── tests/                         # Тесты
-│   └── test_parser.py             # 10 тестов (парсер, генератор, фильтры)
+│   ├── test_parser.py             # 23 теста: парсинг, REALITY round-trip
+│   ├── test_checker.py            # 10 тестов: TCP/Clash API/SOCKS
+│   ├── test_filters.py            # 7 тестов: фильтры конфига
+│   └── test_generator.py          # 8 тестов: Clash/Sing-box/сортировка
 │
 ├── output/                        # Результат сборки (локальный)
 │   └── subscription.txt           # Сгенерированная подписка
@@ -78,7 +82,7 @@ Proxy-parser-now/
 │
 └── .github/
     └── workflows/
-        └── update.yml             # CI: сборка каждые 3 часа
+        └── update.yml             # CI: сборка каждые 3 часа + деплой
 ```
 
 ---
@@ -316,10 +320,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # 3. Установка
-pip install -e ".[test]"
+pip install -e ".[test,lint]"
 
-# 4. Тесты
+# 4. Тесты и линтер
 python -m pytest -q
+python -m ruff check src tests
 
 # 5. Запуск
 python -m src.main --config config.yaml --verbose
@@ -355,7 +360,17 @@ python -m src.main --help
 python -m pytest -q
 ```
 
-**38 тестов** покрывают:
+**48 тестов** распределены по четырём файлам:
+
+| Файл | Тестов | Что покрывает |
+|------|--------|----------------|
+| `tests/test_parser.py` | 23 | парсинг всех протоколов, Base64/YAML/JSON, отбрасывание мусора, round-trip REALITY |
+| `tests/test_checker.py` | 10 | TCP-недоступность, Clash API-хендшейк, проверка HTTP-статуса через SOCKS, чтение секрета и тегов |
+| `tests/test_filters.py` | 7 | фильтры по типу/стране/протоколу/скорости, `include_unchecked` |
+| `tests/test_generator.py` | 8 | генерация Clash/Sing-box, сортировка по задержке |
+
+Полный список того, что проверяется:
+
 - Парсинг VLESS с REALITY
 - Парсинг Base64-подписок
 - Парсинг Clash YAML
@@ -363,7 +378,7 @@ python -m pytest -q
 - Отбрасывание placeholder'ов
 - Отбрасывание HTTP/SOCKS
 - Fallback-механизм
-- Round-trip сохранение REALITY-параметров (vless, vmess, trojan)
+- Round-trip сохранение REALITY-параметров (vless, vmess, trojan, **hy2**)
 - Обратное направление: TLS не должен становиться REALITY
 - Дедупликацию по `(type, server, port)`
 - Валидацию UUID и обязательных паролей
@@ -386,16 +401,26 @@ python -m pytest -q
 
 Файл: `.github/workflows/update.yml`
 
-**Расписание:** `0 */3 * * *` — каждые 3 часа
+**Расписание:** `0 */3 * * *` — каждые 3 часа, плюс ручной запуск `workflow_dispatch`.
 
-**Шаги:**
+Пайплайн состоит из двух job'ов:
+
+**Job `update`** — сборка и коммит:
+
 1. Checkout репозитория
 2. Установка Python 3.12
-3. Установка проекта: `pip install -e ".[test]"`
-4. Запуск тестов: `python -m pytest -q`
-5. Сборка: `timeout 15m python -m src.main`
-6. Публикация в `docs/`
+3. Установка проекта: `pip install -e ".[test,lint]"`
+4. Валидация: `compileall` → `ruff check` → `pytest -q`
+5. Сборка: `timeout 15m python -m src.main --config config.yaml --verbose`
+6. Публикация в `docs/` (с защитой от утечки YAML-синтаксиса в подписку)
 7. Авто-коммит через `git-auto-commit-action`
+
+**Job `deploy`** — деплой статики (зависит от `update`):
+
+1. `actions/upload-pages-artifact@v3` упаковывает папку `docs/`
+2. `actions/deploy-pages@v4` публикует артефакт на GitHub Pages
+
+> **Важно:** для job `deploy` требуется, чтобы в настройках репозитория **Settings → Pages → Source** было выбрано **GitHub Actions** (а не «Deploy from a branch»). Иначе будет конфликт с авто-коммитом в `docs/`.
 
 **Ручной запуск:** вкладка Actions → "Update proxy subscriptions" → Run workflow
 
@@ -405,11 +430,12 @@ python -m pytest -q
 
 1. Запушьте репозиторий на GitHub
 2. Settings → Pages
-3. Source: **Deploy from a branch**
-4. Branch: `master` / папка: `/docs`
-5. URL: `https://USERNAME.github.io/REPOSITORY/subscription.txt`
+3. Source: **GitHub Actions** (деплой идёт через `deploy` job из `update.yml`)
+4. URL: `https://USERNAME.github.io/REPOSITORY/subscription.txt`
 
 Файл `docs/.nojekyll` отключает обработку Jekyll, чтобы GitHub Pages отдавал файлы как есть.
+
+Альтернатива — «Deploy from a branch» (ветка `master`, папка `/docs`), но тогда отключите job `deploy`, чтобы избежать гонки с авто-коммитом.
 
 ---
 
@@ -502,6 +528,59 @@ python -m pytest -q
 
 **Решение:** Base64-декодирование применяется только к legacy-формату.
 
+### 10. Hysteria2 помечался как не-TLS
+
+**Симптом:** `hy2://` узел не получал флаг `tls`, хотя Hysteria2 — это QUIC-over-TLS по определению протокола.
+
+**Причина:** в `parse_uri()` флаг `tls` выставлялся только при `security=tls/reality` или для схемы `trojan`.
+
+**Решение:** `hy2`/`hysteria2` теперь всегда подразумевают TLS. Покрыто тестом `test_hysteria2_uri_is_parsed`.
+
+### 11. Фильтр по типу отбрасывал trojan
+
+**Симптом:** фильтр `types: [trojan]` давал пустую подписку.
+
+**Причина:** тестовый прокси-узел типа trojan создавался с `uuid`, но без `password`, а генератор `to_plaintext_uris()` справедливо не выпускает URI без обязательных учётных данных.
+
+**Решение:** тестовый фикстур выдаёт UUID для vless/vmess и пароль для trojan/hy2/ss.
+
+---
+
+## 🔍 Качество кода
+
+### Типизация
+
+Все функции в `src/` имеют полные аннотации типов: `str | None`, `list[ProxyConfig]`, `dict[str, Any]`, `tuple[int, dict]`. Модель данных — `@dataclass` с `field(default_factory=dict)`. Используется синтаксис `X | Y` вместо `Optional[X]`.
+
+### Линтинг
+
+```bash
+ruff check src tests
+```
+
+Конфигурация в `pyproject.toml`:
+
+```toml
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "SIM", "RUF", "FURB", "LOG"]
+ignore = ["E501"]
+```
+
+Линтер запускается и в CI — шаг *Validate parser* падает при любом нарушении.
+
+### Definition of Done
+
+Критерии приёмки, которым проект соответствует на данный момент:
+
+1. **Линтеры и тесты** — `ruff check` и `pytest` возвращают 0 ошибок (48 тестов).
+2. **Парсинг смешанных источников** — Base64, YAML и URI парсируются в одном потоке; битые строки (`garbage`, `://broken`, невалидный UUID/порт) отбрасываются, не роняя весь прогон.
+3. **Валидация через Clash API** — мёртвые узлы отсекаются (`verified=False`), а параметры REALITY/gRPC (`security`, `pbk`, `sid`, `mode`, `serviceName`) сохраняются при round-trip.
+4. **Читаемость подписки** — итоговый файл содержит только валидные URI, по одному на строку, без YAML-включений, и ре-парсится обратно.
+
 ---
 
 ## ⚠️ Ограничения
@@ -511,6 +590,7 @@ python -m pytest -q
 3. **Свободные прокси живут недолго** — из 107 узлов за пару часов отвалились 2 из 3
 4. **Сетевые ограничения в РФ** — `raw.githubusercontent.com` заблокирован, используется jsDelivr
 5. **Telegram-источники** не поддерживаются (нужен Bot API токен)
+6. **Битый YAML-элемент роняет весь файл** — если в `proxies:` встречается синтаксическая ошибка, `yaml.safe_load()` выбрасывает исключение и весь источник отбрасывается. Это сознательное решение: partial-YAML парсинг потребовал бы ручного строчного разбора, что не оправдано при наличии fallback-механизма
 
 ---
 
@@ -551,12 +631,14 @@ python -m src.main --config config.yaml --verbose
 
 | Метрика | Значение |
 |---------|----------|
-| Тестов | 38 |
+| Тестов | 48 (23 parser + 10 checker + 7 filters + 8 generator) |
 | Внешних зависимостей | 1 (PyYAML) |
+| Dev-зависимостей | 2 (pytest, ruff) |
 | Поддерживаемых протоколов | 5 (VLESS, VMess, Trojan, SS, HY2) |
 | Входных форматов | 4 (plain, Base64, Clash YAML, Sing-box JSON) |
 | Частота обновления | каждые 3 часа |
-| Размер кодовой базы | ~700 строк Python |
+| Размер кодовой базы | ~811 строк Python (только `src/`) |
+| Линтинг | ruff, 0 ошибок |
 
 ---
 
