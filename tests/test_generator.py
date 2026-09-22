@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import yaml
 
+from scripts.metrics_summary import build_alert, build_summary
 from src.checker.pipeline import build
 from src.generator.generators import sort_by_latency, to_clash, to_singbox
 from src.parser.model import ProxyConfig
@@ -120,6 +121,69 @@ def test_build_metrics_healthy_flag(tmp_path, monkeypatch):
     assert metrics["published"] == 3
     assert metrics["min_working_nodes"] == 5
     assert metrics["healthy"] is False
+
+
+def test_metrics_summary_healthy():
+    """build_summary produces normal output without warning when healthy."""
+    metrics = {
+        "checked": 32, "verified": 9, "published": 9,
+        "timestamp_utc": "2026-01-01T00:00:00Z",
+        "min_working_nodes": 5, "healthy": True,
+    }
+    text = build_summary(metrics)
+    assert "## Build metrics" in text
+    assert "Checked: **32**" in text
+    assert "Published: **9**" in text
+    assert "⚠️" not in text
+
+
+def test_metrics_summary_warning_when_unhealthy():
+    """build_summary includes the warning when published < min_working_nodes."""
+    metrics = {
+        "checked": 10, "verified": 2, "published": 2,
+        "timestamp_utc": "2026-01-01T00:00:00Z",
+        "min_working_nodes": 5, "healthy": False,
+    }
+    text = build_summary(metrics)
+    assert "⚠️" in text
+    assert "Pool may be degrading" in text
+
+
+def test_metrics_summary_includes_degradation_alert():
+    """When the pool shrinks ≥ 50% vs the previous run, an alert line is added."""
+    previous = {
+        "checked": 50, "verified": 10, "published": 10,
+        "min_working_nodes": 5, "healthy": True,
+    }
+    current = {
+        "checked": 50, "verified": 2, "published": 2,
+        "min_working_nodes": 5, "healthy": False,
+    }
+    text = build_summary(current, previous)
+    assert "🚨" in text
+    assert "dropped from 10 to 2" in text
+
+
+def test_metrics_summary_no_alert_when_stable():
+    """No alert when the pool count is stable or growing."""
+    previous = {
+        "checked": 50, "verified": 10, "published": 10,
+        "min_working_nodes": 5, "healthy": True,
+    }
+    current = {
+        "checked": 50, "verified": 9, "published": 9,
+        "min_working_nodes": 5, "healthy": True,
+    }
+    text = build_summary(current, previous)
+    assert "🚨" not in text
+
+
+def test_build_alert_returns_none_for_small_drops():
+    """A drop of < 50% does not trigger the alert."""
+    assert build_alert(
+        {"published": 10, "min_working_nodes": 5},
+        {"published": 6, "min_working_nodes": 5},
+    ) is None
 
 
 def test_build_writes_subscription_and_docs_copy(tmp_path, monkeypatch):
