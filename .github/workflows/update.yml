@@ -31,18 +31,69 @@ jobs:
           python -m ruff check src tests
           python -m pytest -q
 
-      - name: Build subscriptions
-        run: timeout 15m python -m src.main --config config.yaml --verbose
+      - name: Download sing-box binary (pin 1.13.1, verify SHA-256)
+        id: singbox
+        run: |
+          SINGBOX_VERSION=1.13.1
+          SINGBOX_URL="https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz"
+          EXPECTED_SHA256=e68f9a193892826663c2c9999ef3394a2bb6779d5d932a6db7bf47d530741cb9
+          curl -fsSL -o sing-box.tar.gz "${SINGBOX_URL}"
+          ACTUAL_SHA256=$(sha256sum sing-box.tar.gz | awk '{print $1}')
+          if [[ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]]; then
+            echo "::error::SHA-256 mismatch: expected ${EXPECTED_SHA256}, got ${ACTUAL_SHA256}"
+            exit 1
+          fi
+          tar -xzf sing-box.tar.gz
+          rm -f sing-box.tar.gz
+          chmod +x sing-box
+          ./sing-box version
+
+      - name: Enable sing-box check in config
+        run: |
+          python -c "
+          import yaml
+          cfg = yaml.safe_load(open('config.yaml'))
+          cfg.setdefault('check', {}).setdefault('singbox', {})['enabled'] = True
+          yaml.safe_dump(cfg, open('config.yaml', 'w'), allow_unicode=True, sort_keys=False)
+          "
+
+      - name: Build subscriptions (15 min cap, publish partial on timeout)
+        timeout-minutes: 15
+        run: |
+          set +e
+          timeout 14m python -m src.checker.launch_singbox \
+            --config config.yaml --singbox ./sing-box 2>&1 | tee build.log
+          RC=$?
+          set -e
+          if [[ $RC -eq 124 ]]; then
+            echo "::warning::15-min cap reached — publishing partial results"
+          fi
+          echo "Build log (URIs stripped):"
+          grep -vE 'vless://|vmess://|trojan://|ss://|hy2://' build.log
+          CANDIDATES=$(grep -cE '^candidate ' build.log || true)
+          echo "::notice::Candidate result rows in build log: ${CANDIDATES}"
+          if [[ "$CANDIDATES" -lt 20 ]]; then
+            echo "::warning::Fewer than 20 candidate result rows were logged; the check may have aborted early"
+          fi
+
+      - name: Upload build log and subscription as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-evidence
+          path: |
+            build.log
+            output/subscription.txt
 
       - name: Publish generated files to docs
         run: |
           mkdir -p docs
-          ! grep -Eq '^(proxies:|- name:|  type:|  server:|  port:)' output/subscription.txt
-          if [[ ! -s output/subscription.txt ]]; then
-            echo "No valid encrypted proxy URIs found; publishing an empty subscription."
+          if [[ -s output/subscription.txt ]]; then
+            ! grep -Eq '^(proxies:|- name:|  type:|  server:|  port:)' output/subscription.txt
+            rm -f docs/subscription.yaml docs/subscription.json
+            cp -f output/subscription.txt docs/subscription.txt
+          else
+            echo "::warning::No valid encrypted proxy URIs found; existing docs/subscription.txt preserved."
           fi
-          rm -f docs/subscription.yaml docs/subscription.json
-          cp -f output/subscription.txt docs/subscription.txt
           touch docs/.nojekyll
 
       - name: Commit generated files

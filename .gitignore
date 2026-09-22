@@ -3,3 +3,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 output/*.tmp
+# Локальный sing-box: в CI бинарник скачивается из релизов с проверкой SHA-256,
+# коммитить большой бинарник в репозиторий нельзя.
+sing-box
+sing-box-*/
+.python-version
+build.log

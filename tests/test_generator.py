@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import yaml
 
+from src.checker.pipeline import build
 from src.generator.generators import sort_by_latency, to_clash, to_singbox
-from src.main import build
 from src.parser.model import ProxyConfig
 
 
@@ -69,6 +69,7 @@ def test_sort_by_latency_keeps_unverified_last():
 def _write_config(tmp_path, **overrides):
     config = {
         "sources": [],
+        "check": {"reverify_before_publish": False},
         "output": {"directory": str(tmp_path / "output"), "formats": ["plaintext"]},
     }
     config.update(overrides)
@@ -83,7 +84,8 @@ def test_build_writes_subscription_and_docs_copy(tmp_path, monkeypatch):
     config_path = _write_config(tmp_path)
 
     proxy = _proxy("192.0.2.10", 443, verified=True)
-    with patch("src.main.parse_sources", return_value=[proxy]):
+    with patch("src.checker.pipeline.parse_sources", return_value=[proxy]), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         count = build(str(config_path))
 
     assert count == 1
@@ -100,13 +102,16 @@ def test_build_clears_stale_subscription_when_nothing_works(tmp_path, monkeypatc
     config_path = _write_config(tmp_path, output={"directory": str(tmp_path / "output"), "formats": ["plaintext"]})
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "subscription.txt").write_text("stale-content\n", encoding="utf-8")
+    (tmp_path / "output").mkdir()
+    (tmp_path / "output" / "subscription.txt").write_text("stale-content\n", encoding="utf-8")
 
-    with patch("src.main.parse_sources", return_value=[]):
+    with patch("src.checker.pipeline.parse_sources", return_value=[]):
         count = build(str(config_path))
 
+    # Empty-pub guard: existing non-empty subscription is preserved, not cleared
     assert count == 0
-    assert (tmp_path / "output" / "subscription.txt").read_text(encoding="utf-8") == ""
-    assert (tmp_path / "docs" / "subscription.txt").read_text(encoding="utf-8") == ""
+    assert (tmp_path / "output" / "subscription.txt").read_text(encoding="utf-8") == "stale-content\n"
+    assert (tmp_path / "docs" / "subscription.txt").read_text(encoding="utf-8") == "stale-content\n"
 
 
 def test_build_applies_latency_sorting(tmp_path, monkeypatch):
@@ -118,7 +123,8 @@ def test_build_applies_latency_sorting(tmp_path, monkeypatch):
 
     slow = _proxy("192.0.2.1", 443, speed_kbps=100, verified=True)
     fast = _proxy("192.0.2.2", 443, speed_kbps=900, verified=True)
-    with patch("src.main.parse_sources", return_value=[slow, fast]):
+    with patch("src.checker.pipeline.parse_sources", return_value=[slow, fast]), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 
     text = (tmp_path / "output" / "subscription.txt").read_text(encoding="utf-8")
@@ -131,7 +137,8 @@ def test_build_skips_sorting_by_default(tmp_path, monkeypatch):
 
     slow = _proxy("192.0.2.1", 443, speed_kbps=100, verified=True)
     fast = _proxy("192.0.2.2", 443, speed_kbps=900, verified=True)
-    with patch("src.main.parse_sources", return_value=[slow, fast]):
+    with patch("src.checker.pipeline.parse_sources", return_value=[slow, fast]), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 
     text = (tmp_path / "output" / "subscription.txt").read_text(encoding="utf-8")

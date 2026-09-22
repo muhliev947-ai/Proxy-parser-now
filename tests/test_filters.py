@@ -1,4 +1,4 @@
-"""Tests for the filtering layer in src/main.py.
+"""Tests for the filtering layer in the shared pipeline.
 
 The spec requires filters by country, proxy type, protocol, minimum speed and
 availability, so each one is exercised here against a fixed candidate set.
@@ -8,13 +8,12 @@ from unittest.mock import patch
 
 import yaml
 
-from src.main import build
+from src.checker.pipeline import build
 from src.parser.model import ProxyConfig
 
 
-def _proxy(server, ptype="vless", speed_kbps=None, verified=False, country=None, network=None, reality=None):
-    # vless/vmess authenticate with a UUID; trojan/hy2/ss need a password,
-    # otherwise to_plaintext_uris() cannot emit a usable URI for them.
+def _proxy(server, ptype="vless", speed_kbps=None, verified=False, country=None,
+           network=None, reality=None):
     credentials = (
         {"uuid": "550e8400-e29b-41d4-a716-446655440000"}
         if ptype in {"vless", "vmess"}
@@ -33,6 +32,7 @@ def _config(tmp_path, monkeypatch, filters):
     monkeypatch.chdir(tmp_path)
     config = {
         "sources": [],
+        "check": {"reverify_before_publish": False},
         "output": {"directory": str(tmp_path / "output"), "formats": ["plaintext"]},
     }
     config.update(filters)
@@ -43,7 +43,8 @@ def _config(tmp_path, monkeypatch, filters):
 
 def _run(tmp_path, monkeypatch, candidates, filters):
     config_path = _config(tmp_path, monkeypatch, filters)
-    with patch("src.main.parse_sources", return_value=candidates):
+    with patch("src.checker.pipeline.parse_sources", return_value=candidates), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         count = build(str(config_path))
     text = (tmp_path / "output" / "subscription.txt").read_text(encoding="utf-8")
     return count, text

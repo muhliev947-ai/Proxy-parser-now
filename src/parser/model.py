@@ -29,6 +29,7 @@ class ProxyConfig:
     available: bool | None = None
     tcp_reachable: bool | None = None
     verified: bool = False
+    fail_reason: str = ""
 
     def __post_init__(self) -> None:
         self.type = self.type.lower().replace("shadowsocks", "ss").replace("hysteria2", "hy2")

@@ -12,7 +12,9 @@
 
 1. **Собирает** публичные прокси-конфиги из интернета (GitHub-репозитории, подписки)
 2. **Парсит** форматы VLESS, VMess, Trojan, Shadowsocks, Hysteria2
-3. **Проверяет** их работоспособность через запущенный Hiddify (sing-box)
+3. **Проверяет** их работоспособность — два режима:
+   - **Hiddify-режим** (локальный): через запущенный Hiddify с Clash API
+   - **CI-режим (Varianta B)**: `LocalSingBoxBackend` — один sing-box на всех кандидатов, каждый кандидат получает свой `mixed` inbound, проверка идёт параллельно
 4. **Фильтрует** по типам, протоколам, скорости и доступности
 5. **Генерирует** подписку в формате plain-text URI
 6. **Публикует** её на GitHub Pages
@@ -51,7 +53,7 @@ Proxy-parser-now/
 │
 ├── src/                           # Исходный код
 │   ├── __init__.py
-│   ├── main.py                    # Точка входа, оркестрация pipeline
+│   ├── main.py                    # Точка входа (Hiddify-режим), тонкая обёртка над pipeline.build
 │   │
 │   ├── parser/                    # Модуль парсинга
 │   │   ├── __init__.py
@@ -60,18 +62,22 @@ Proxy-parser-now/
 │   │
 │   ├── checker/                   # Модуль проверки
 │   │   ├── __init__.py
-│   │   └── checker.py             # Проверка через Clash API Hiddify
+│   │   ├── checker.py             # Проверка через Clash API Hiddify (Hiddify-режим)
+│   │   ├── pipeline.py            # Общий pipeline: build(), HiddifyBackend, LocalSingBoxBackend
+│   │   └── launch_singbox.py     # CI-режим: standalone запуск sing-box без Hiddify
 │   │
 │   └── generator/                 # Модуль генерации
 │       ├── __init__.py
-│       └── generators.py          # Генерация Clash YAML и Sing-box JSON
+│       └── generators.py          # Clash YAML, Sing-box JSON, to_singbox_parallel (Varianta B)
 │
-├── tests/                         # Тесты
+├── tests/                         # Тесты (70+4 интеграционных)
 │   ├── test_parser.py             # 26 тестов: парсинг, REALITY round-trip, partial-YAML
 │   ├── test_checker.py            # 10 тестов: TCP/Clash API/SOCKS
 │   ├── test_filters.py            # 7 тестов: фильтры конфига
 │   ├── test_generator.py          # 8 тестов: Clash/Sing-box/сортировка
-│   └── test_publication.py        # 4 теста: пул узлов, финальная перепроверка
+│   ├── test_publication.py        # 4 теста: пул узлов, финальная перепроверка
+│   ├── test_launch_singbox.py     # 15 тестов: Varianta B, batch halving, secrets, ports
+│   └── test_integration_singbox.py # 5 тестов: реальный sing-box (skipif при отсутствии бинаря)
 │
 ├── output/                        # Результат сборки (локальный)
 │   └── subscription.txt           # Сгенерированная подписка
@@ -223,7 +229,9 @@ check_proxy(proxy, config) → ProxyConfig
 ### `src/generator/generators.py` — генерация
 
 - `to_clash(proxies)` — Clash YAML формат
-- `to_singbox(proxies)` — Sing-box JSON формат
+- `to_singbox(proxies)` — Sing-box JSON формат (Hiddify-режим)
+- `to_singbox_parallel(proxies, base_port, clash_api_port, clash_api_secret)` — Varianta B: один mixed inbound на кандидата, route.rules привязка
+- `filter_supported_outbounds(proxies)` — разделение на (supported, unsupported)
 - `to_plaintext_uris(proxies)` — plain-text URI (основной формат для Hiddify)
 - `sort_by_latency(proxies)` — сортировка по задержке, быстрые первыми
 
@@ -235,83 +243,22 @@ output:
   sort_by_latency: true
 ```
 
-### `src/main.py` — оркестрация
+### `src/main.py` — оркестрация (Hiddify-режим)
 
 ```python
 build(config_path) → int  # количество рабочих прокси
 ```
 
-Последовательность:
+Тонкая обёртка над `pipeline.build()` с HiddifyBackend. Последовательность:
 1. Чтение `config.yaml`
 2. Парсинг источников
 3. Ограничение кандидатов (`max_candidates`)
-4. Очистка старых файлов подписки
-5. Загрузка тегов Hiddify
-6. Параллельная проверка (ThreadPoolExecutor)
-7. Фильтрация
-8. Генерация и запись
+4. Загрузка тегов Hiddify
+5. Параллельная проверка (ThreadPoolExecutor)
+6. Фильтрация, сортировка, reverify
+7. Генерация и запись
 
----
-
-## ⚙️ Конфигурация (config.yaml)
-
-### Источники
-
-```yaml
-sources:
-  - https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray
-```
-
-- URL или локальный путь
-- Поддерживаются `http://`, `https://`, относительные пути
-- `github:owner/repo` — рекурсивный обход через GitHub API
-- **Сеть в РФ:** `raw.githubusercontent.com` недоступен, используется зеркало `cdn.jsdelivr.net/gh/`
-
-### Фильтры
-
-```yaml
-freshness_days: 7          # только свежие файлы (для github: источников)
-countries: []              # [] = все страны (RU, TR, NL, DE, PL)
-types: [vless, vmess, trojan, ss, hy2]   # разрешённые типы
-protocols: []              # [] = все (reality, xhttp, grpc, ws)
-min_speed_kbps: 0          # минимальная скорость
-```
-
-### Проверка
-
-```yaml
-check:
-  enabled: true
-  require_protocol_handshake: true
-  clash_api_url: http://127.0.0.1:16756
-  clash_api_secret: MkueO0owlZajEXK7    # обновляется автоматически
-  socks_proxy_url: socks5h://127.0.0.1:12334   # проверка HTTP-статуса
-  expected_status: 204                  # только 204 = узел рабочий
-  max_candidates: 500      # лимит для скорости
-  timeout_seconds: 5       # TCP timeout
-  concurrency: 8           # потоков
-  urls: [https://cp.cloudflare.com/generate_204]
-  min_working_nodes: 5     # пул: сколько живых узлов хотим в подписке
-  max_total_candidates: 2000  # верхняя граница проверяемых кандидатов
-  reverify_before_publish: true  # перепроверка топовых узлов перед записью
-  reverify_top_n: 10
-```
-
-### Вывод
-
-```yaml
-output:
-  directory: output
-  formats: [plaintext]     # plaintext | clash | singbox
-  sort_by_latency: true    # сортировка по задержке, быстрые первыми
-  include_unchecked: false # false = только проверенные узлы
-```
-
-### Fallback
-
-```yaml
-fallback_file: sample_proxies.txt   # используется, если все источники недоступны
-```
+**CI-режим (Varianta B):** `python -m src.checker.launch_singbox` — использует `LocalSingBoxBackend`, Hiddify не требуется.
 
 ---
 
@@ -369,7 +316,7 @@ python -m src.main --help
 python -m pytest -q
 ```
 
-**55 тестов** распределены по пяти файлам:
+**70 тестов + 5 интеграционных** (skipif при отсутствии sing-box) распределены по семи файлам:
 
 | Файл | Тестов | Что покрывает |
 |------|--------|----------------|
@@ -378,6 +325,13 @@ python -m pytest -q
 | `tests/test_filters.py` | 7 | фильтры по типу/стране/протоколу/скорости, `include_unchecked` |
 | `tests/test_generator.py` | 8 | генерация Clash/Sing-box, сортировка по задержке |
 | `tests/test_publication.py` | 4 | пул рабочих узлов, финальная перепроверка, фильтры до проверки |
+| `tests/test_launch_singbox.py` | 15 | Varianta B: один inbound на кандидата, batch halving, secrets, free ports, filter, empty-pub guard |
+| `tests/test_integration_singbox.py` | 5 | реальный sing-box: `check -c`, фильтрация xhttp, reality outbound проходит check, dead-node rejection, полный lifecycle (skipif) |
+
+**Интеграционные тесты** прогоняются при наличии бинарика:
+```bash
+SINGBOX_BIN=./sing-box python -m pytest tests/test_integration_singbox.py -v
+```
 
 Полный список того, что проверяется:
 
@@ -421,9 +375,13 @@ python -m pytest -q
 2. Установка Python 3.12
 3. Установка проекта: `pip install -e ".[test,lint]"`
 4. Валидация: `compileall` → `ruff check` → `pytest -q`
-5. Сборка: `timeout 15m python -m src.main --config config.yaml --verbose`
-6. Публикация в `docs/` (с защитой от утечки YAML-синтаксиса в подписку)
-7. Авто-коммит через `git-auto-commit-action`
+5. Загрузка sing-box 1.13.1 (pin + SHA-256 verification: `e68f9a19...`)
+6. Включение `check.singbox.enabled: true` в config.yaml (Python-сниппет)
+7. Сборка: `timeout 15m python -m src.checker.launch_singbox --config config.yaml --singbox ./sing-box`
+   - При таймауте (rc=124) — публикует частичные результаты (empty-pub guard)
+   - `--verbose` логирует без URIs и секретов
+8. Публикация в `docs/`: если `output/subscription.txt` не пуст — копирует; иначе сохраняет существующую подписку
+9. Авто-коммит через `git-auto-commit-action`
 
 **Job `deploy`** — деплой статики (зависит от `update`):
 
@@ -594,21 +552,41 @@ ignore = ["E501"]
 
 Критерии приёмки, которым проект соответствует на данный момент:
 
-1. **Линтеры и тесты** — `ruff check` и `pytest` возвращают 0 ошибок (55 тестов).
+1. **Линтеры и тесты** — `ruff check` и `pytest` возвращают 0 ошибок (70 тестов + 5 интеграционных).
 2. **Парсинг смешанных источников** — Base64, YAML и URI парсируются в одном потоке; битые строки (`garbage`, `://broken`, невалидный UUID/порт) отбрасываются, не роняя весь прогон.
 3. **Валидация через Clash API** — мёртвые узлы отсекаются (`verified=False`), а параметры REALITY/gRPC (`security`, `pbk`, `sid`, `mode`, `serviceName`) сохраняются при round-trip.
 4. **Читаемость подписки** — итоговый файл содержит только валидные URI, по одному на строку, без YAML-включений, и ре-парсится обратно.
+5. **CI-режим (Varianta B)** — `LocalSingBoxBackend` запускает sing-box без Hiddify; batch halving изолирует битые outbounds; empty-pub guard сохраняет существующую подписку при нуле проверенных узлов.
+6. **Безопасность** — в `--verbose` логах нет URI-линков и Clash API секретов; `clash_api_secret` генерируется через `secrets.token_hex(16)` на каждый запуск.
 
 ---
 
 ## ⚠️ Ограничения
 
-1. **Нужен запущенный Hiddify** — без него проверка невозможна, подписка будет пустой
-2. **GitHub Actions не может проверять прокси** — там нет Hiddify, поэтому CI публикует пустую подписку. Это намеренно: лучше пусто, чем нерабочие узлы
+1. **Нужен запущенный Hiddify** — в Hiddify-режиме без него проверка невозможна. CI-режим (Varianta B) не требует Hiddify: sing-box запускается standalone.
+2. **CI-проверка ≠ проверка из РФ** — GitHub Actions работает на датацентре в США/Европе. Узел, доступный из датацентра, может быть недоступен из России (обратное тоже). Hiddify-режим на локальной машине точнее. Это не баг, а ограничение среды.
 3. **Свободные прокси живут недолго** — из 107 узлов за пару часов отвалились 2 из 3
 4. **Сетевые ограничения в РФ** — `raw.githubusercontent.com` заблокирован, используется jsDelivr
 5. **Telegram-источники** не поддерживаются (нужен Bot API токен)
 6. **Свежесть узлов** — бесплатные прокси быстро устаревают; даже из 2000 распарсенных кандидатов REAL-проверку через Hiddify проходят единицы. Это не баг парсера, а природа публичных подписок: `include_unchecked: false` гарантирует, что в подписку попадают только реально рабочие узлы. Если живых узлов меньше, чем `min_working_nodes`, подписка содержит столько, сколько нашлось — лучше один проверенный узел, чем ноль или сотня непроверенных.
+7. **Batch halving — не параметр конфига** — размер батча и глубина деления (max 8) жёстко заданы в коде; нельзя настроить из `config.yaml`.
+8. **xhttp / httpupgrade** — эти транспорты не поддерживаются sing-box и отфильтровываются автоматически; кандидаты с ними не включаются в проверку.
+9. **uTLS / reality в CI** — синтаксис конфиг-секции `tls.utls` требует поля `enabled: true` и валидный `public_key` (base64/x25519). Условный фильтр reality был удалён; если часть узлов всё ещё отклоняется (некорректный ключ, отсутствующий SNI), лог `Dropping unsupported outbound … security=reality` показывает причину. `utls.enabled` и `utls.fingerprint` (`chrome` по умолчанию) проставляются автоматически генератором.
+
+### Reference: `check.singbox` config section
+
+```yaml
+check:
+  singbox:
+    enabled: false            # false в локальном Hiddify-режиме; CI workflow включает
+    binary: ./sing-box       # путь к бинарнику sing-box (CI скачивает в ./sing-box)
+    wait_seconds: 30          # макс. секунд ожидания готовности Clash API порта
+    max_outbounds: 500        # лимит outbound'ов в одном экземпляре sing-box
+    concurrency: 8            # параллельные HTTP-запросы через dedicated inbounds
+    port_per_candidate: 1    # один mixed inbound на кандидата (Variant B)
+```
+
+**Фильтры перед генерацией конфига:** `xhttp`/`httpupgrade` (несовместимые транспорты). Эти узлы не попадают в sing-box, но остаются в подписке — фильтр только локальной проверки, не генерации. Reality-узлы поддерживаются: генератор автоматически добавляет `tls.utls.enabled=true` и `tls.utls.fingerprint` (по умолчанию `chrome`).
 
 ---
 
@@ -679,7 +657,7 @@ python -m src.main --config config.yaml --verbose
 
 | Метрика | Значение |
 |---------|----------|
-| Тестов | 55 (26 parser + 10 checker + 7 filters + 8 generator + 4 publication) |
+| Тестов | 75 (26 parser + 10 checker + 7 filters + 8 generator + 4 publication + 15 launch_singbox + 5 integration) |
 | Внешних зависимостей | 1 (PyYAML) |
 | Dev-зависимостей | 2 (pytest, ruff) |
 | Поддерживаемых протоколов | 5 (VLESS, VMess, Trojan, SS, HY2) |
@@ -695,3 +673,5 @@ python -m src.main --config config.yaml --verbose
 Проект работает **только с публичными источниками**. Никаких приватных репозиториев, личных аккаунтов или закрытых подписок. Вся информация берётся из открытых GitHub-репозиториев.
 
 Использование бесплатных прокси несёт риски: трафик проходит через сторонние серверы. Не используйте для передачи конфиденциальных данных.
+
+---

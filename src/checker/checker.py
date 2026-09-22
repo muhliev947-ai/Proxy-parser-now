@@ -1,4 +1,5 @@
 import json
+import logging
 import socket
 import urllib.parse
 import urllib.request
@@ -7,6 +8,8 @@ from pathlib import Path
 from urllib.request import urlopen
 
 from src.parser.model import ProxyConfig
+
+LOG = logging.getLogger(__name__)
 
 
 @dataclass
@@ -115,12 +118,14 @@ def check_proxy(proxy: ProxyConfig, config: CheckConfig) -> ProxyConfig:
             proxy.tcp_reachable = True
     except (OSError, ValueError):
         proxy.tcp_reachable = False
+        proxy.fail_reason = "TCP connection to the server port failed (node down, firewall, or IP blocked)"
         proxy.available = False
         proxy.verified = False
         proxy.speed_kbps = 0
         return proxy
 
     if not config.clash_api_url:
+        proxy.fail_reason = "no Clash API configured; node could not be verified"
         proxy.available = False
         proxy.verified = False
         proxy.speed_kbps = 0
@@ -128,14 +133,21 @@ def check_proxy(proxy: ProxyConfig, config: CheckConfig) -> ProxyConfig:
 
     try:
         ok = _verify_via_clash_api(proxy, config)
+        reason = None
         if ok:
             ok = _verify_via_socks(proxy, config)
+            if not ok:
+                reason = "HTTP status through the node differed from the expected one"
+        elif proxy.speed_kbps in (0, 0.0):
+            reason = "no usable latency/HTTP status got through the node"
         proxy.available = ok
         proxy.verified = ok
         if not ok:
             proxy.speed_kbps = 0
+            proxy.fail_reason = reason or "Clash API delay check failed"
     except (OSError, ValueError):
         proxy.available = False
         proxy.verified = False
         proxy.speed_kbps = 0
+        proxy.fail_reason = "network error during verification"
     return proxy
