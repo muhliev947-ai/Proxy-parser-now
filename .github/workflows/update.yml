@@ -79,31 +79,7 @@ jobs:
           fi
 
       - name: Write job summary from metrics
-        run: |
-          if [[ -f output/metrics.json ]]; then
-            python - "$GITHUB_STEP_SUMMARY" <<'EOF'
-import json, sys
-m = json.load(open("output/metrics.json"))
-lines = [
-    "## Build metrics",
-    "",
-    f"- Checked: **{m['checked']}**",
-    f"- Verified: **{m['verified']}**",
-    f"- Published: **{m['published']}**",
-    f"- Timestamp: {m['timestamp_utc']}",
-]
-min_working = m.get("min_working_nodes", 0)
-if min_working > 0:
-    lines.append(f"- Min working nodes: {min_working}")
-    if not m.get("healthy", True):
-        lines.append("")
-        lines.append(f"⚠️ **Published {m['published']} nodes — below the min_working_nodes threshold ({min_working}). Pool may be degrading.**")
-sys.stdout.write("\n".join(lines) + "\n")
-EOF
-          else
-            echo "## Build metrics" >> "$GITHUB_STEP_SUMMARY"
-            echo "metrics.json not found (build may have failed before publishing)." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: python3 scripts/metrics_summary.py "$GITHUB_STEP_SUMMARY"
 
       - name: Upload build log and subscription as artifacts
         uses: actions/upload-artifact@v4
