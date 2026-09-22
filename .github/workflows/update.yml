@@ -45,6 +45,8 @@ jobs:
           fi
           tar -xzf sing-box.tar.gz
           rm -f sing-box.tar.gz
+          mv "sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box" ./sing-box
+          rm -rf "sing-box-${SINGBOX_VERSION}-linux-amd64"
           chmod +x sing-box
           ./sing-box version
 
