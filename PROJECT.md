@@ -224,6 +224,33 @@ check_proxy(proxy, config) → ProxyConfig
 
 **Разрешение тегов:** Clash API не отдаёт адреса серверов, только теги. Поэтому `load_hiddify_tags()` читает `~/.local/share/hiddify/data/current-config.json` и строит индекс `(server, port) → tag`.
 
+### `src/checker/pipeline.py` — общий pipeline
+
+Общий код для обоих режимов. Основные сущности:
+
+```python
+build(config_path, backend) → int  # количество рабочих прокси
+_check_with_pool(candidates, backend, check) → list[ProxyConfig]
+_reverify_before_publish(proxies, backend, check) → list[ProxyConfig]
+_write_freshness_metadata(final, backend) → None
+redact(message: str) → str  # удалеие секретов из лог-сообщений
+_RedactFilter(logging.Filter)  # автоматический фильтр для логгера
+```
+
+**Pool-growth loop** (`_check_with_pool`):
+1. `batch_size = max(concurrency * 4, min_working_nodes)`
+2. Цикл: берём `batch_size` кандидатов, запускаем sing-box (или Hiddify), проверяем батч
+3. После каждого батча считаем `verified` — если `verified >= min_working_nodes`, останавливаемся
+4. Если кандидатов нет — останавливаемся
+5. `max_total_candidates` (по умолчанию `max_candidates * 4`) жёстко ограничивает общее число проверенных кандидатов, чтобы мёртвая сеть не затянула прогон
+
+**Empty-pub guard:** если проверенных узлов ноль и существующего файла `subscription.txt` нет — ничего не записывается, log-сообщение «No verified proxies and no existing subscription found; nothing written». Если файл существует — он сохраняется как есть.
+
+**Redaction** (`redact()`):
+- Удаляет из лог-сообщений: `uuid=…`, `password=…`/`pwd=…`, `pbk=…`, `sid=…`, `Bearer <token>`, голые UUID-токены, полные proxy-URI (остаётся только схема).
+- Применяется в `LocalSingBoxBackend._spawn_with_halving` (stderr-хвост), `verify_batch` (exception-сообщение), `_log_candidate_result` (reason), и в предупреждении о drop при reverify.
+- `_RedactFilter` подключается к модульному логгеру `LOG` pipeline'а и к корневому логгеру в `main()` и `launch_singbox.py`.
+
 **Динамическое обновление секрета:** Hiddify генерирует новый секрет при каждом перезапуске. Функция `load_hiddify_tags()` читает актуальный токен из `experimental.clash_api.secret` и обновляет глобальное состояние. Секрет из `config.yaml` используется только как fallback.
 
 ### `src/generator/generators.py` — генерация
@@ -259,6 +286,40 @@ build(config_path) → int  # количество рабочих прокси
 7. Генерация и запись
 
 **CI-режим (Varianta B):** `python -m src.checker.launch_singbox` — использует `LocalSingBoxBackend`, Hiddify не требуется.
+
+### `src/checker/pipeline.py` — общий pipeline
+
+Общий код для обоих режимов. Основные сущности:
+
+```python
+build(config_path, backend) → int
+_check_with_pool(candidates, backend, check) → list[ProxyConfig]
+_reverify_before_publish(proxies, backend, check) → list[ProxyConfig]
+_write_freshness_metadata(final, backend) → None
+redact(message: str) → str
+_RedactFilter(logging.Filter)
+```
+
+**Pool-growth loop** (`_check_with_pool`):
+- `batch_size = max(concurrency * 4, min_working_nodes)`
+- Цикл: берём `batch_size` кандидатов, запускаем sing-box (или Hiddify), проверяем батч
+- После каждого батча считаем `verified` — если `verified >= min_working_nodes`, останавливаемся
+- Если кандидатов нет или достигнут `max_total_candidates` — останавливаемся
+- `max_total_candidates` (по умолчанию `max_candidates * 4`) жёстко ограничивает общее число проверенных кандидатов
+
+**Empty-pub guard:**
+- Если проверенных узлов ноль и `output/subscription.txt` не существует — ничего не записывается (log: «No verified proxies and no existing subscription found; nothing written»)
+- Если файл существует — он сохраняется как есть, новый прогон не чистит подписку
+
+**Redaction** (`redact()`):
+- Удаляет из лог-сообщений: `uuid=…`, `password=…`/`pwd=…`, `pbk=…`, `sid=…`, `Bearer <token>`, голые UUID-токены, полные proxy-URI (остаётся только схема)
+- Применяется: `LocalSingBoxBackend._spawn_with_halving` (stderr-хвост), `verify_batch` (exception-сообщение), `_log_candidate_result` (reason), предупреждение о drop при reverify
+- `_RedactFilter` подключается к модульному логгеру `LOG` pipeline'а и к корневому логгеру в `main()` и `launch_singbox.py`
+
+**Freshness metadata** (`_write_freshness_metadata`):
+- При успешной сборке (есть проверенные узлы, plaintext-формат) записывает в `docs/index.html` под маркером `<!-- freshness-meta -->`: время последнего успешного чека (UTC), количество узлов, разбивку по типам
+- `docs/subscription.txt` и `output/subscription.txt` остаются чистым списком URI без метаданных
+- Время берётся из `backend.last_log_time` (для `LocalSingBoxBackend`) или из `time.gmtime()`
 
 ---
 
@@ -316,7 +377,7 @@ python -m src.main --help
 python -m pytest -q
 ```
 
-**70 тестов + 5 интеграционных** (skipif при отсутствии sing-box) распределены по семи файлам:
+**87 тестов** (skipif при отсутствии sing-box) распределены по десяти файлам:
 
 | Файл | Тестов | Что покрывает |
 |------|--------|----------------|
@@ -325,8 +386,9 @@ python -m pytest -q
 | `tests/test_filters.py` | 7 | фильтры по типу/стране/протоколу/скорости, `include_unchecked` |
 | `tests/test_generator.py` | 8 | генерация Clash/Sing-box, сортировка по задержке |
 | `tests/test_publication.py` | 4 | пул рабочих узлов, финальная перепроверка, фильтры до проверки |
-| `tests/test_launch_singbox.py` | 15 | Varianta B: один inbound на кандидата, batch halving, secrets, free ports, filter, empty-pub guard |
-| `tests/test_integration_singbox.py` | 5 | реальный sing-box: `check -c`, фильтрация xhttp, reality outbound проходит check, dead-node rejection, полный lifecycle (skipif) |
+| `tests/test_launch_singbox.py` | 15 | Varianta B: один inbound на кандидата, batch halving, secrets, free ports, pool-growth, empty-pub guard |
+| `tests/test_redaction.py` | 7 | `redact()`: UUID, password, pbk/sid, bearer, mask whole URI, safe metadata passes, filter cleans slipped args |
+| `tests/test_integration_singbox.py` | 5 | реальный sing-box: `check -c`, фильтрация xhttp, REALITY outbound (валидный x25519 ключ) проходит check, dead-node rejection, полный lifecycle (skipif) |
 
 **Интеграционные тесты** прогоняются при наличии бинарика:
 ```bash
@@ -552,7 +614,7 @@ ignore = ["E501"]
 
 Критерии приёмки, которым проект соответствует на данный момент:
 
-1. **Линтеры и тесты** — `ruff check` и `pytest` возвращают 0 ошибок (70 тестов + 5 интеграционных).
+1. **Линтеры и тесты** — `ruff check` и `pytest` возвращают 0 ошибок (87 тестов, включая redaction, pool-growth, empty-pub guard, и 5 интеграционных с реальным sing-box).
 2. **Парсинг смешанных источников** — Base64, YAML и URI парсируются в одном потоке; битые строки (`garbage`, `://broken`, невалидный UUID/порт) отбрасываются, не роняя весь прогон.
 3. **Валидация через Clash API** — мёртвые узлы отсекаются (`verified=False`), а параметры REALITY/gRPC (`security`, `pbk`, `sid`, `mode`, `serviceName`) сохраняются при round-trip.
 4. **Читаемость подписки** — итоговый файл содержит только валидные URI, по одному на строку, без YAML-включений, и ре-парсится обратно.
@@ -586,7 +648,9 @@ check:
     port_per_candidate: 1    # один mixed inbound на кандидата (Variant B)
 ```
 
-**Фильтры перед генерацией конфига:** `xhttp`/`httpupgrade` (несовместимые транспорты). Эти узлы не попадают в sing-box, но остаются в подписке — фильтр только локальной проверки, не генерации. Reality-узлы поддерживаются: генератор автоматически добавляет `tls.utls.enabled=true` и `tls.utls.fingerprint` (по умолчанию `chrome`).
+**Filter-ы перед генерацией конфига:** `xhttp`/`httpupgrade` (несовместимые транспорты). Эти узлы не попадают в sing-box, но остаются в подписке — фильтр только локальной проверки, не генерации.
+
+**REALITY-поддержка:** фиксированный sing-box 1.13.1 собирается с тегом `with_utls`, поэтому фильтр по типу `reality` отсутствует. Причина ошибок «uTLS is required by reality client» была не в отсутствующем uTLS, а в некорректных x25519 публичных ключах (padded base64 или не та длина). При валидном 43-символьном unpadded x25519 ключе `sing-box check -c` возвращает rc=0. Генератор `to_singbox_parallel` автоматически добавляет `tls.utls.enabled=true` и `tls.utls.fingerprint` (по умолчанию `chrome`) для всех REALITY-узлов.
 
 ---
 
@@ -657,13 +721,13 @@ python -m src.main --config config.yaml --verbose
 
 | Метрика | Значение |
 |---------|----------|
-| Тестов | 75 (26 parser + 10 checker + 7 filters + 8 generator + 4 publication + 15 launch_singbox + 5 integration) |
+| Тестов | 87 (26 parser + 10 checker + 7 filters + 8 generator + 4 publication + 15 launch_singbox + 7 redaction + 5 integration + 5 pool-growth) |
 | Внешних зависимостей | 1 (PyYAML) |
 | Dev-зависимостей | 2 (pytest, ruff) |
 | Поддерживаемых протоколов | 5 (VLESS, VMess, Trojan, SS, HY2) |
 | Входных форматов | 4 (plain, Base64, Clash YAML, Sing-box JSON) |
 | Частота обновления | каждые 3 часа |
-| Размер кодовой базы | ~811 строк Python (только `src/`) |
+| Размер кодовой базы | ~1200 строк Python (только `src/`) |
 | Линтинг | ruff, 0 ошибок |
 
 ---
