@@ -109,6 +109,11 @@ jobs:
 
   deploy:
     needs: update
+    # Serialises Pages deployments — prevents "in progress deployment" 400 errors
+    # when multiple runs (cron + dispatch + auto-commit) fire near-simultaneously.
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages
