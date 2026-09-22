@@ -44,6 +44,9 @@ sources:
   # с 1 коммитом ("Initial sync"). Живучесть НЕ подтверждена историей —
   # перепроверить через неделю; если коммитов больше нет, удалить.
   - https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt
+  # Alirewa/V2ray-Configs — sub1.txt: ~100 узлов (trojan/vless, base64).
+  # Авто-бот "🔄 auto-update configs", 4–6 коммитов в день, 3 мес. истории.
+  - https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt
   # mfuu/v2ray — крупный автообновляемый Clash-YAML (1015 узлов: ss/vmess/trojan).
   # Файл содержит битые flow-mappings с вложенными кавычками, поэтому парсер
   # теперь восстанавливает валидные записи построчно, а не отбрасывает весь файл.
