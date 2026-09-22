@@ -69,6 +69,9 @@ check:
   max_candidates: 500
   timeout_seconds: 5
   concurrency: 8
+  # Максимальная глубина урезания батча (batch halving) в LocalSingBoxBackend:
+  # 2^N единичных батчей до полного отказа. По умолчанию 8 (до 256 батчей).
+  max_halving_depth: 8
   urls: [https://cp.cloudflare.com/generate_204]
   # Пул рабочих узлов: проверка продолжается, пока не наберётся min_working_nodes
   # живых узлов (или пока не кончатся кандидаты). Бесплатные прокси умирают за

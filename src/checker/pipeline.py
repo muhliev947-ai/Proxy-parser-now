@@ -158,6 +158,7 @@ class LocalSingBoxBackend:
         self._binary = binary
         self._wait_seconds = wait_seconds
         self._max_outbounds = int(singbox_cfg.get("max_outbounds", 200))
+        self._max_halving_depth = int(singbox_cfg.get("max_halving_depth", 8))
         self._concurrency = int(check.get("concurrency", 8))
         self._timeout_seconds = float(check.get("timeout_seconds", 5))
         self._target_url = (check.get("urls") or ["https://cp.cloudflare.com/generate_204"])[0]
@@ -205,7 +206,7 @@ class LocalSingBoxBackend:
         self, batch: list[ProxyConfig], depth: int = 0,
     ) -> _Instance:
         """Try to spawn sing-box for *batch*; on check failure halve and retry."""
-        max_depth = 8  # 2^8 = 256 singletons before giving up
+        max_depth = self._max_halving_depth
         if depth > max_depth or len(batch) == 1:
             # Last resort: skip the check and just try to run
             LOG.warning("sing-box check gave up after %d halvings, trying to run %d nodes", depth, len(batch))
@@ -742,6 +743,7 @@ def build(config_path: str = "config.yaml", backend: CheckBackend | None = None)
         return 0
 
     LOG.info("Publishing %d verified proxies", len(verified))
+    _write_metrics(output, candidates, len(verified), check)
     formats = config.get("output", {}).get("formats", ["plaintext"])
     if "plaintext" in formats:
         _write_freshness_metadata(final, backend)
@@ -755,6 +757,34 @@ def build(config_path: str = "config.yaml", backend: CheckBackend | None = None)
         (output / "subscription.json").write_text(to_singbox(final), encoding="utf-8")
     LOG.info("Wrote %d proxies to %s", len(final), output)
     return len(final)
+
+
+def _write_metrics(
+    output_dir: Path,
+    candidates: list[ProxyConfig],
+    published: int,
+    check: dict,
+) -> None:
+    """Write structured run metrics to output/metrics.json.
+
+    This file is committed by CI so the git history of a small JSON serves
+    as the cross-run trend source for the future "pool degradation" alert.
+    """
+    min_working = int(check.get("min_working_nodes", 0))
+    checked = len(candidates)
+    verified = sum(1 for p in candidates if p.verified)
+    metrics = {
+        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "checked": checked,
+        "verified": verified,
+        "published": published,
+        "min_working_nodes": min_working,
+        "healthy": published >= min_working if min_working > 0 else published > 0,
+    }
+    (output_dir / "metrics.json").write_text(
+        json.dumps(metrics, indent=2) + "\n", encoding="utf-8",
+    )
+    LOG.info("Wrote metrics to %s", output_dir / "metrics.json")
 
 
 def _write_freshness_metadata(final: list[ProxyConfig], backend: CheckBackend) -> None:
@@ -773,11 +803,21 @@ def _write_freshness_metadata(final: list[ProxyConfig], backend: CheckBackend) -
     breakdown = ", ".join(f"{type_name}: {count}" for type_name, count in sorted(by_type.items()))
     index_path = Path("docs") / "index.html"
     marker = "<!-- freshness-meta -->"
+    # The verification runs from GitHub Actions (US/EU datacenter), so node
+    # availability is a regional measurement. Explain that next to the
+    # freshness block and point users to their own client for local checks.
+    region_note = (
+        "&nbsp;&nbsp;⚠️&nbsp;"
+        "Nodes were verified from GitHub Actions (US/EU datacenter). "
+        "Availability from other regions or your device may differ — "
+        "for the most accurate picture, check your selected nodes in your client."
+    )
     meta_block = (
         f"{marker}\n      <p id=\"freshness-meta\">"
         f"Last successful check: <b>{stamp}</b><br>"
         f"Nodes: <b>{len(final)}</b><br>"
-        f"By type: {breakdown or 'n/a'}"
+        f"By type: {breakdown or 'n/a'}<br>"
+        f"<span style=\"font-size:0.85em;color:#555;\">{region_note}</span>"
         f"</p>\n"
     )
     if index_path.exists():

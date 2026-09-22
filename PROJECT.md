@@ -233,6 +233,7 @@ build(config_path, backend) → int  # количество рабочих пр�
 _check_with_pool(candidates, backend, check) → list[ProxyConfig]
 _reverify_before_publish(proxies, backend, check) → list[ProxyConfig]
 _write_freshness_metadata(final, backend) → None
+_write_metrics(output_dir, candidates, published, check) → None  # пишет output/metrics.json
 redact(message: str) → str  # удалеие секретов из лог-сообщений
 _RedactFilter(logging.Filter)  # автоматический фильтр для логгера
 ```
@@ -296,6 +297,7 @@ build(config_path, backend) → int
 _check_with_pool(candidates, backend, check) → list[ProxyConfig]
 _reverify_before_publish(proxies, backend, check) → list[ProxyConfig]
 _write_freshness_metadata(final, backend) → None
+_write_metrics(output_dir, candidates, published, check) → None
 redact(message: str) → str
 _RedactFilter(logging.Filter)
 ```
@@ -318,8 +320,21 @@ _RedactFilter(logging.Filter)
 
 **Freshness metadata** (`_write_freshness_metadata`):
 - При успешной сборке (есть проверенные узлы, plaintext-формат) записывает в `docs/index.html` под маркером `<!-- freshness-meta -->`: время последнего успешного чека (UTC), количество узлов, разбивку по типам
+- Рядом с freshness-блоком выводится региональная оговорка: узлы проверялись из датацентра GitHub Actions (США/Европа), доступность из других регионов может отличаться
 - `docs/subscription.txt` и `output/subscription.txt` остаются чистым списком URI без метаданных
 - Время берётся из `backend.last_log_time` (для `LocalSingBoxBackend`) или из `time.gmtime()`
+
+**Run metrics** (`_write_metrics`):
+- При каждой успешной сборке записывает `output/metrics.json` со структурой:
+  ```json
+  {"timestamp_utc": "…", "checked": N, "verified": M, "published": K,
+   "min_working_nodes": L, "healthy": bool}
+  ```
+- Файл коммитится CI-автоматикой; git-история этого файла — источник тренда для будущего алерта «пул деградирует»
+- `healthy` = `published >= min_working_nodes` (если `min_working_nodes > 0`, иначе `published > 0`)
+
+**JSON fail-safe в парсере** (`parse_text`):
+- Неверный JSON (обрезанный sing-box-экспорт, смешанный текст) больше не приводит к полному отбрасыванию источника: `json.loads` ловится через `json.JSONDecodeError`, пишется warning, и парсер продолжает через YAML/URI-линии того же текста (аналогично поведению для битого YAML)
 
 ---
 
@@ -631,7 +646,7 @@ ignore = ["E501"]
 4. **Сетевые ограничения в РФ** — `raw.githubusercontent.com` заблокирован, используется jsDelivr
 5. **Telegram-источники** не поддерживаются (нужен Bot API токен)
 6. **Свежесть узлов** — бесплатные прокси быстро устаревают; даже из 2000 распарсенных кандидатов REAL-проверку через Hiddify проходят единицы. Это не баг парсера, а природа публичных подписок: `include_unchecked: false` гарантирует, что в подписку попадают только реально рабочие узлы. Если живых узлов меньше, чем `min_working_nodes`, подписка содержит столько, сколько нашлось — лучше один проверенный узел, чем ноль или сотня непроверенных.
-7. **Batch halving — не параметр конфига** — размер батча и глубина деления (max 8) жёстко заданы в коде; нельзя настроить из `config.yaml`.
+7. **Batch halving** — глубина деления настраивается через `check.singbox.max_halving_depth` (по умолчанию 8, т.е. до 256 единичных батчей до отказа). Размер батча определяется `max_outbounds`.
 8. **xhttp / httpupgrade** — эти транспорты не поддерживаются sing-box и отфильтровываются автоматически; кандидаты с ними не включаются в проверку.
 9. **uTLS / reality в CI** — синтаксис конфиг-секции `tls.utls` требует поля `enabled: true` и валидный `public_key` (base64/x25519). Условный фильтр reality был удалён; если часть узлов всё ещё отклоняется (некорректный ключ, отсутствующий SNI), лог `Dropping unsupported outbound … security=reality` показывает причину. `utls.enabled` и `utls.fingerprint` (`chrome` по умолчанию) проставляются автоматически генератором.
 

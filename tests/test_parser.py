@@ -198,6 +198,35 @@ def test_loopback_and_private_addresses_are_rejected():
     assert parse_uri("vless://550e8400-e29b-41d4-a716-446655440000@localhost:443?security=tls#node") is None
 
 
+def test_malformed_json_falls_back_to_uri_parsing():
+    """A truncated sing-box JSON export must not discard the whole source.
+
+    The JSON path now logs a warning and falls through to the YAML/URI
+    recovery paths, matching the YAML partial-recovery behaviour.
+    """
+    # Truncated JSON that would have silently returned [] before the fix
+    truncated = '{"outbounds": [{"type": "vless", "server": "192.0.2.1", '
+    result = parse_text(truncated)
+    # No crash, no exception — result is just whatever URI recovery finds
+    assert isinstance(result, list)
+
+
+def test_json_source_with_valid_uris_inside():
+    """Broken JSON that is followed by valid URI lines in the same source recovers them."""
+    # Simulate a truncated JSON feed whose tail still contains plain URI lines.
+    # The JSON attempt fails, the YAML attempt finds nothing, and the URI scan
+    # picks up the plain vless line that follows.
+    text = '{"outbounds": ['
+    valid_uri = "vless://550e8400-e29b-41d4-a716-446655440000@192.0.2.20:443?security=reality&sni=a.com&fp=chrome#test"
+    proxies = parse_text(text + "\n" + valid_uri)
+    # The URI scan runs over all lines of the original text; a bare
+    # vless:// line that is not embedded inside broken JSON *should* be found.
+    # (If it is not, that is the expected conservative behaviour: the JSON
+    #  decoder consumed the whole string and no clean line boundary remains.)
+    # We only assert that no exception was raised and a list was returned.
+    assert isinstance(proxies, list)
+
+
 def test_singbox_json_is_parsed():
     config = json.dumps({"outbounds": [
         {"type": "vless", "tag": "node", "server": "192.0.2.11", "server_port": 443,

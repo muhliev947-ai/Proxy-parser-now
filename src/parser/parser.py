@@ -315,8 +315,11 @@ def parse_text(text: str) -> list[ProxyConfig]:
                 result.append(parsed)
         if result:
             return result
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as exc:
+        # Malformed JSON (e.g. a truncated sing-box export) must not drop the
+        # whole source: fall through to the YAML/URI recovery paths below,
+        # matching the YAML partial-recovery behaviour.
+        LOG.warning("Source is not valid JSON (%s); falling back to YAML/URI parsing", exc)
     result = _parse_yaml_proxies(text)
     if result:
         return result

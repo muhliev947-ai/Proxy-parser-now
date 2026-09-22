@@ -78,6 +78,50 @@ def _write_config(tmp_path, **overrides):
     return config_path
 
 
+def test_build_writes_metrics_json(tmp_path, monkeypatch):
+    """Each successful build must produce output/metrics.json with run counts."""
+    monkeypatch.chdir(tmp_path)
+    config_path = _write_config(
+        tmp_path,
+        check={"reverify_before_publish": False, "min_working_nodes": 2},
+    )
+    proxies = [
+        _proxy("192.0.2.1", 443, verified=True),
+        _proxy("192.0.2.2", 443, verified=False),
+        _proxy("192.0.2.3", 443, verified=True),
+    ]
+    with patch("src.checker.pipeline.parse_sources", return_value=proxies), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
+        build(str(config_path))
+
+    metrics = json.loads((tmp_path / "output" / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["checked"] == 3
+    assert metrics["verified"] == 2
+    assert metrics["published"] == 2
+    assert metrics["min_working_nodes"] == 2
+    assert metrics["healthy"] is True
+
+
+def test_build_metrics_healthy_flag(tmp_path, monkeypatch):
+    """healthy is False when published < min_working_nodes."""
+    monkeypatch.chdir(tmp_path)
+    config_path = _write_config(
+        tmp_path,
+        check={"reverify_before_publish": False, "min_working_nodes": 5},
+    )
+    proxies = [
+        _proxy(f"192.0.2.{i}", 443, verified=True) for i in range(1, 4)
+    ]
+    with patch("src.checker.pipeline.parse_sources", return_value=proxies), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
+        build(str(config_path))
+
+    metrics = json.loads((tmp_path / "output" / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["published"] == 3
+    assert metrics["min_working_nodes"] == 5
+    assert metrics["healthy"] is False
+
+
 def test_build_writes_subscription_and_docs_copy(tmp_path, monkeypatch):
     """The docs/ copy must stay in sync with output/subscription.txt."""
     monkeypatch.chdir(tmp_path)
