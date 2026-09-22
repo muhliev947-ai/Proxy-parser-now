@@ -40,6 +40,10 @@ sources:
   - https://cdn.jsdelivr.net/gh/Pawdroid/Free-servers@main/sub
   - https://cdn.jsdelivr.net/gh/ripaojiedian/freenode@main/sub
   # Новые агрегаторы (верифицированы: парсятся и отдают узлы)
+  # cbusifabcap/daily_free_vpn — Z.txt: ~417 узлов (vless/trojan), зеркало
+  # с 1 коммитом ("Initial sync"). Живучесть НЕ подтверждена историей —
+  # перепроверить через неделю; если коммитов больше нет, удалить.
+  - https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt
   # mfuu/v2ray — крупный автообновляемый Clash-YAML (1015 узлов: ss/vmess/trojan).
   # Файл содержит битые flow-mappings с вложенными кавычками, поэтому парсер
   # теперь восстанавливает валидные записи построчно, а не отбрасывает весь файл.
