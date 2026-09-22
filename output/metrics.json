@@ -1,8 +1,8 @@
 {
-  "timestamp_utc": "2026-09-22T15:24:13Z",
+  "timestamp_utc": "2026-09-22T15:33:48Z",
   "checked": 32,
-  "verified": 10,
-  "published": 10,
+  "verified": 12,
+  "published": 12,
   "min_working_nodes": 5,
   "healthy": true
 }
