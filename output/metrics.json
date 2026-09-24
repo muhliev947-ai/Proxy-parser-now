@@ -1,30 +1,26 @@
 {
-  "timestamp_utc": "2026-09-24T15:15:17Z",
+  "timestamp_utc": "2026-09-24T16:19:26Z",
   "checked": 128,
-  "verified": 31,
-  "published": 31,
-  "min_working_nodes": 30,
+  "verified": 42,
+  "published": 42,
+  "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 20,
-      "verified": 2
+      "checked": 22,
+      "verified": 3
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
-      "checked": 11,
-      "verified": 4
+      "checked": 8,
+      "verified": 5
     },
     "https://cdn.jsdelivr.net/gh/ermaozi/get_subscribe@main/subscribe/v2ray.txt": {
       "checked": 7,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 36,
-      "verified": 9
-    },
-    "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
-      "checked": 9,
-      "verified": 2
+      "checked": 30,
+      "verified": 8
     },
     "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
       "checked": 8,
@@ -32,27 +28,31 @@
     },
     "https://cdn.jsdelivr.net/gh/mfuu/v2ray@master/sub.yaml": {
       "checked": 3,
+      "verified": 3
+    },
+    "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
+      "checked": 15,
+      "verified": 2
+    },
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/subscriptions/mix-normal.txt": {
+      "checked": 2,
       "verified": 2
     },
     "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 23,
+      "checked": 20,
+      "verified": 6
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
+      "checked": 9,
+      "verified": 9
+    },
+    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
+      "checked": 3,
       "verified": 3
     },
     "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/shadowsocks.txt": {
       "checked": 1,
       "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vless.txt": {
-      "checked": 1,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
-      "checked": 3,
-      "verified": 2
-    },
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
-      "checked": 6,
-      "verified": 6
     }
   }
 }
