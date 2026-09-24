@@ -65,6 +65,19 @@ def build_summary(metrics: dict, previous: dict | None = None) -> str:
     alert = build_alert(previous, metrics)
     if alert:
         lines.append(alert)
+    by_source = metrics.get("by_source")
+    if by_source:
+        lines.append("")
+        lines.append("### Per-source")
+        lines.append("")
+        lines.append("| Source | Checked | Verified |")
+        lines.append("| --- | ---: | ---: |")
+        for source, counts in sorted(
+            by_source.items(), key=lambda item: (item[1].get("verified", 0), item[1].get("checked", 0)), reverse=True
+        ):
+            lines.append(
+                f"| `{source}` | {counts.get('checked', 0)} | {counts.get('verified', 0)} |"
+            )
     return "\n".join(lines) + "\n"
 
 

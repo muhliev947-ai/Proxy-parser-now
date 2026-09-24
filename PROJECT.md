@@ -328,10 +328,14 @@ _RedactFilter(logging.Filter)
 - При каждой успешной сборке записывает `output/metrics.json` со структурой:
   ```json
   {"timestamp_utc": "…", "checked": N, "verified": M, "published": K,
-   "min_working_nodes": L, "healthy": bool}
+   "min_working_nodes": L, "healthy": bool,
+   "by_source": {"<source>": {"checked": N, "verified": M}, …}}
   ```
 - Файл коммитится CI-автоматикой; git-история этого файла — источник тренда для будущего алерта «пул деградирует»
 - `healthy` = `published >= min_working_nodes` (если `min_working_nodes > 0`, иначе `published > 0`)
+- `by_source` — честная разбивка проверенных/верифицированных по каждому источнику (URL из `config.yaml`), чтобы новые источники оценивались по своим цифрам, а не по суммарному опубликованию. Парсер помечает каждый `ProxyConfig` полем `source` в `parse_sources`; метки выдерживают дедупликацию (побеждает первый источник в порядке `sources`)
+- `min_working_nodes` — явный параметр в `config.yaml` (текущее постоянное значение 5; при тест-прогонах новых источников временно поднимался до 30). В коде дефолт `0` (= без ранней остановки), поэтому значение всегда читать из конфига
+- `scripts/metrics_summary.py` печатает в CI job summary (кроме суммарных цифр) Markdown-таблицу «Per-source» по `by_source`
 
 **JSON fail-safe в парсере** (`parse_text`):
 - Неверный JSON (обрезанный sing-box-экспорт, смешанный текст) больше не приводит к полному отбрасыванию источника: `json.loads` ловится через `json.JSONDecodeError`, пишется warning, и парсер продолжает через YAML/URI-линии того же текста (аналогично поведению для битого YAML)
@@ -466,6 +470,35 @@ SINGBOX_BIN=./sing-box python -m pytest tests/test_integration_singbox.py -v
 2. `actions/deploy-pages@v4` публикует артефакт на GitHub Pages
 
 > **Важно:** для job `deploy` требуется, чтобы в настройках репозитория **Settings → Pages → Source** было выбрано **GitHub Actions** (а не «Deploy from a branch»). Иначе будет конфликт с авто-коммитом в `docs/`.
+
+**Job `deploy`** — деплой статики (зависит от `update`):
+
+1. `actions/upload-pages-artifact@v3` упаковывает папку `docs/`
+2. `actions/deploy-pages@v4` публикует артефакт на GitHub Pages
+
+> **Важно:** для job `deploy` требуется, чтобы в настройках репозитория **Settings → Pages → Source** было выбрано **GitHub Actions** (а не «Deploy from a branch»). Иначе будет конфликт с авто-коммитом в `docs/`.
+
+**Serialization via `concurrency.group` — known limitation:**
+
+`deploy` job имеет `concurrency: group: github-pages` + `environment: github-pages`, что **серийзует сами job'ы**, но **НЕ предотвращает 400 "in progress deployment" в Pages API**.
+
+Требования GitHub Pages API:
+
+- GitHub Pages держит свой собственный lock на уровне сайта — независимо от `concurrency.group` на стороне CI.
+- Если два deploy-запроса (от разных workflow-runs, включая bot-запускаемые) пересекаются на уровне `deploy-pages@v4`, приходит `400: Deployment request failed for X due to in progress deployment. Please cancel Y first or wait for it to complete.`
+- `concurrency.group: github-pages` сериализует *одновременно запуски* *одного* workflow, но **не сериализует** параллельные деплои от разных запусков (например, один cron + один `workflow_dispatch` + `pages-build-deployment` от `deploy`-бота, который реагирует на авто-коммит в `docs/`).
+
+**Что делать при 400 (поправочные шаги):**
+
+1. Открой Actions → Run с `400` в `deploy`-жобе. В логе будет указан SHA в-процессе деплоя: `Please cancel 059cd0a4f… first or wait for it to complete`.
+2. Найди этот ран в Runs; если он завис (обычно это `pages-build-deployment` от бота), **отмени его** (Cancel → Confirm) — Pages-API lock освободится.
+3. Перезапусти упавший `Update proxy subscriptions` (через Rerun) — Pages-API уже свободен.
+
+**Что можно улучшить в workflow (по желанию):**
+
+- `retry:` обёртка вокруг `deploy-pages@v4` — при 400 подождать ~15 c и повторить (Pages API держит lock лишь несколько секунд).
+- `concurrency: cancel-in-progress: true` — если несколько запущений одновременно, отменить раннее.
+- Перейти на `actions/deploy-pages@v5` (когда будет) — ожидается лучшая обработка гонок.
 
 **Ручной запуск:** вкладка Actions → "Update proxy subscriptions" → Run workflow
 
@@ -649,6 +682,7 @@ ignore = ["E501"]
 7. **Batch halving** — глубина деления настраивается через `check.singbox.max_halving_depth` (по умолчанию 8, т.е. до 256 единичных батчей до отказа). Размер батча определяется `max_outbounds`.
 8. **xhttp / httpupgrade** — эти транспорты не поддерживаются sing-box и отфильтровываются автоматически; кандидаты с ними не включаются в проверку.
 9. **uTLS / reality в CI** — синтаксис конфиг-секции `tls.utls` требует поля `enabled: true` и валидный `public_key` (base64/x25519). Условный фильтр reality был удалён; если часть узлов всё ещё отклоняется (некорректный ключ, отсутствующий SNI), лог `Dropping unsupported outbound … security=reality` показывает причину. `utls.enabled` и `utls.fingerprint` (`chrome` по умолчанию) проставляются автоматически генератором.
+10. **`min_working_nodes` — early stop pool-growth loop'а (не cap)** — цикл в `_check_with_pool` останавливается, как только `verified >= min_working_nodes`, даже если кандидаты ещё остались. Это осознанное поведение: подписка не растёт бесконечно, но **метрики «источник дал +N verified» не отражают реальный потенциал источника** — loop может не дойти до хвоста списка кандидатов. Чтобы протестировать новый источник честно, **временно поднимите `min_working_nodes`** (или поднимите `concurrency`, чтобы `batch_size = max(concurrency*4, min_working_nodes)` вырастал и покрывал хвост), иначе результаты сравнения источников недостоверны. После замера верните значения обратно.
 
 ### Reference: `check.singbox` config section
 

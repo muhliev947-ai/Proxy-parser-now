@@ -773,6 +773,15 @@ def _write_metrics(
     min_working = int(check.get("min_working_nodes", 0))
     checked = len(candidates)
     verified = sum(1 for p in candidates if p.verified)
+    # Per-source breakdown (checked vs verified), so a new source's real
+    # contribution is visible instead of a single lumpy total.
+    by_source: dict[str, dict[str, int]] = {}
+    for proxy in candidates:
+        label = proxy.source or "(unknown)"
+        entry = by_source.setdefault(label, {"checked": 0, "verified": 0})
+        entry["checked"] += 1
+        if proxy.verified:
+            entry["verified"] += 1
     metrics = {
         "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "checked": checked,
@@ -780,6 +789,7 @@ def _write_metrics(
         "published": published,
         "min_working_nodes": min_working,
         "healthy": published >= min_working if min_working > 0 else published > 0,
+        "by_source": by_source,
     }
     (output_dir / "metrics.json").write_text(
         json.dumps(metrics, indent=2) + "\n", encoding="utf-8",

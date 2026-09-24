@@ -409,6 +409,12 @@ def _github_repo_files(repo_source: str, freshness_days: int = 7, timeout: int =
     return _collect()
 
 
+def _tag_proxies(proxies: list[ProxyConfig], source: str) -> None:
+    """Record which source each proxy came from, for per-source metrics."""
+    for proxy in proxies:
+        proxy.source = source
+
+
 def parse_sources(sources: list[str], timeout: int = 15, freshness_days: int = 7, fallback_file: str | None = None) -> list[ProxyConfig]:
     result: list[ProxyConfig] = []
     for source in sources:
@@ -419,7 +425,9 @@ def parse_sources(sources: list[str], timeout: int = 15, freshness_days: int = 7
                         request = Request(github_url, headers={"User-Agent": "proxy-subscription-builder/0.1"})
                         with urlopen(request, timeout=timeout) as response:
                             text = response.read().decode("utf-8", errors="replace")
-                        result.extend(parse_text(text))
+                        parsed = parse_text(text)
+                        _tag_proxies(parsed, source)
+                        result.extend(parsed)
                     except (OSError, ValueError):
                         LOG.warning("Could not read GitHub source %s", github_url)
                 continue
@@ -429,14 +437,18 @@ def parse_sources(sources: list[str], timeout: int = 15, freshness_days: int = 7
                     text = response.read().decode("utf-8", errors="replace")
             else:
                 text = Path(source).read_text(encoding="utf-8")
-            result.extend(parse_text(text))
+            parsed = parse_text(text)
+            _tag_proxies(parsed, source)
+            result.extend(parsed)
             LOG.info("Parsed proxies from %s", source)
         except (OSError, ValueError) as exc:
             LOG.warning("Could not read source %s: %s", source, exc)
     if not result and fallback_file:
         try:
             fallback_text = Path(fallback_file).read_text(encoding="utf-8")
-            result.extend(parse_text(fallback_text))
+            parsed = parse_text(fallback_text)
+            _tag_proxies(parsed, fallback_file)
+            result.extend(parsed)
             LOG.warning("No live proxies found; used fallback file %s", fallback_file)
         except OSError as exc:
             LOG.warning("Could not read fallback file %s: %s", fallback_file, exc)

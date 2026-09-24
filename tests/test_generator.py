@@ -123,6 +123,56 @@ def test_build_metrics_healthy_flag(tmp_path, monkeypatch):
     assert metrics["healthy"] is False
 
 
+def test_build_writes_per_source_metrics(tmp_path, monkeypatch):
+    """metrics.json must break checked/verified down per source, not totals only."""
+    monkeypatch.chdir(tmp_path)
+    config_path = _write_config(
+        tmp_path,
+        check={"reverify_before_publish": False, "min_working_nodes": 1},
+    )
+    a1 = _proxy("192.0.2.1", 443, verified=True)
+    a1.source = "https://cdn.jsdelivr.net/gh/acme/sub@main/Z.txt"
+    a2 = _proxy("192.0.2.2", 443, verified=False)
+    a2.source = "https://cdn.jsdelivr.net/gh/acme/sub@main/Z.txt"
+    b1 = _proxy("192.0.2.3", 443, verified=True)
+    b1.source = "https://cdn.jsdelivr.net/gh/acme/sub@main/sub1.txt"
+    proxies = [a1, a2, b1]
+    with patch("src.checker.pipeline.parse_sources", return_value=proxies), \
+            patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
+        build(str(config_path))
+
+    metrics = json.loads((tmp_path / "output" / "metrics.json").read_text(encoding="utf-8"))
+    by_source = metrics["by_source"]
+    assert by_source["https://cdn.jsdelivr.net/gh/acme/sub@main/Z.txt"] == {"checked": 2, "verified": 1}
+    assert by_source["https://cdn.jsdelivr.net/gh/acme/sub@main/sub1.txt"] == {"checked": 1, "verified": 1}
+    assert metrics["checked"] == 3
+    assert metrics["verified"] == 2
+
+
+def test_metrics_summary_includes_per_source_table():
+    """The CI job summary must show a per-source checked/verified table."""
+    metrics = {
+        "checked": 3, "verified": 2, "published": 2,
+        "timestamp_utc": "2026-01-01T00:00:00Z",
+        "min_working_nodes": 1, "healthy": True,
+        "by_source": {
+            "https://a/Z.txt": {"checked": 2, "verified": 1},
+            "https://b/sub1.txt": {"checked": 1, "verified": 1},
+        },
+    }
+    text = build_summary(metrics)
+    assert "### Per-source" in text
+    assert "https://a/Z.txt" in text
+    assert "https://b/sub1.txt" in text
+
+
+def test_metrics_summary_no_per_source_when_absent():
+    """Old metrics.json without by_source must render without the table."""
+    metrics = {"checked": 1, "verified": 1, "published": 1, "min_working_nodes": 1, "healthy": True}
+    text = build_summary(metrics)
+    assert "### Per-source" not in text
+
+
 def test_metrics_summary_healthy():
     """build_summary produces normal output without warning when healthy."""
     metrics = {

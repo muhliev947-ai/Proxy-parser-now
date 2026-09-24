@@ -25,6 +25,7 @@ class ProxyConfig:
     reality: dict[str, Any] | None = None
     raw: dict[str, Any] = field(default_factory=dict)
     country: str | None = None
+    source: str = ""
     speed_kbps: float | None = None
     available: bool | None = None
     tcp_reachable: bool | None = None
