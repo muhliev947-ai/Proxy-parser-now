@@ -1,25 +1,21 @@
 {
-  "timestamp_utc": "2026-09-24T16:22:09Z",
+  "timestamp_utc": "2026-09-24T16:54:16Z",
   "checked": 128,
-  "verified": 39,
-  "published": 39,
-  "min_working_nodes": 30,
+  "verified": 40,
+  "published": 40,
+  "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 22,
-      "verified": 2
+      "checked": 25,
+      "verified": 3
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
       "checked": 8,
-      "verified": 6
-    },
-    "https://cdn.jsdelivr.net/gh/ermaozi/get_subscribe@main/subscribe/v2ray.txt": {
-      "checked": 7,
-      "verified": 0
+      "verified": 5
     },
     "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 30,
+      "checked": 34,
       "verified": 7
     },
     "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
@@ -36,7 +32,7 @@
     },
     "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/subscriptions/mix-normal.txt": {
       "checked": 2,
-      "verified": 1
+      "verified": 2
     },
     "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
       "checked": 20,
