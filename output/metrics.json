@@ -1,8 +1,58 @@
 {
-  "timestamp_utc": "2026-09-24T11:28:33Z",
-  "checked": 64,
-  "verified": 21,
-  "published": 21,
-  "min_working_nodes": 5,
-  "healthy": true
+  "timestamp_utc": "2026-09-24T15:15:17Z",
+  "checked": 128,
+  "verified": 31,
+  "published": 31,
+  "min_working_nodes": 30,
+  "healthy": true,
+  "by_source": {
+    "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
+      "checked": 20,
+      "verified": 2
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
+      "checked": 11,
+      "verified": 4
+    },
+    "https://cdn.jsdelivr.net/gh/ermaozi/get_subscribe@main/subscribe/v2ray.txt": {
+      "checked": 7,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+      "checked": 36,
+      "verified": 9
+    },
+    "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
+      "checked": 9,
+      "verified": 2
+    },
+    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+      "checked": 8,
+      "verified": 1
+    },
+    "https://cdn.jsdelivr.net/gh/mfuu/v2ray@master/sub.yaml": {
+      "checked": 3,
+      "verified": 2
+    },
+    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
+      "checked": 23,
+      "verified": 3
+    },
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/shadowsocks.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vless.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
+      "checked": 3,
+      "verified": 2
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
+      "checked": 6,
+      "verified": 6
+    }
+  }
 }
