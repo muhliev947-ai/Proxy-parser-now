@@ -36,7 +36,6 @@ sources:
   - https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/hysteria2
   # Прочие публичные подписки
   - https://cdn.jsdelivr.net/gh/ts-sf/fly@main/v2
-  - https://cdn.jsdelivr.net/gh/ermaozi/get_subscribe@main/subscribe/v2ray.txt
   - https://cdn.jsdelivr.net/gh/Pawdroid/Free-servers@main/sub
   - https://cdn.jsdelivr.net/gh/ripaojiedian/freenode@main/sub
   # Новые агрегаторы (верифицированы: парсятся и отдают узлы)
@@ -46,11 +45,12 @@ sources:
   - https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt
   # Alirewa/V2ray-Configs — sub1.txt: ~100 узлов (trojan/vless, base64).
   # Авто-бот "🔄 auto-update configs", 4–6 коммитов в день, 3 мес. истории.
-  # WATCH (2026-09-24): 0 verified в тест-прогоне с min_working_nodes=30
-  # (by_source не показал ни одного проверенного кандидата от этого источника).
-  # Причина может быть не в источнике, а в занижении метрик поздних батчей
-  # (см. фикс-блок в PROJECT.md) — решение об удалении после 2-го прогона,
-  # если там тоже 0 verified. Ре-чек: ~2026-09-30.
+  # WATCH (2026-09-24): 0 verified в обоих тест-прогонах с min_working_nodes=30
+  # (absent in by_source — batch loop never reached this source's candidates).
+  # Причина: batch early-stop — поздние источники не доходят при mwn=10.
+  # Обычные прогоны с mwn=10 НЕ протестируют этот источник (0 шансов попасть
+  # в батч). Для честной оценки нужен СПЕЦИАЛЬНЫЙ прогон с mwn=30+ ближе
+  # к ~2026-09-30; если и там 0 verified — удалять.
   - https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt
   # mfuu/v2ray — крупный автообновляемый Clash-YAML (1015 узлов: ss/vmess/trojan).
   # Файл содержит битые flow-mappings с вложенными кавычками, поэтому парсер
