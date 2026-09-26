@@ -1,52 +1,56 @@
 {
-  "timestamp_utc": "2026-09-26T11:08:30Z",
+  "timestamp_utc": "2026-09-26T16:09:12Z",
   "checked": 64,
-  "verified": 9,
-  "published": 9,
+  "verified": 16,
+  "published": 16,
   "min_working_nodes": 10,
-  "healthy": false,
+  "healthy": true,
   "by_source": {
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 13,
-      "verified": 0
+      "checked": 24,
+      "verified": 3
     },
     "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 29,
-      "verified": 9
+      "checked": 15,
+      "verified": 8
     },
     "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
+      "checked": 2,
+      "verified": 1
+    },
+    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
       "checked": 1,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 12,
-      "verified": 0
+      "checked": 9,
+      "verified": 2
     },
-    "https://cdn.jsdelivr.net/gh/mfuu/v2ray@master/sub.yaml": {
-      "checked": 1,
-      "verified": 0
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
+      "checked": 3,
+      "verified": 2
     },
     "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vless.txt": {
       "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+      "checked": 4,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub2.txt": {
       "checked": 1,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
-      "checked": 1,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+    "https://cdn.jsdelivr.net/gh/mfuu/v2ray@master/sub.yaml": {
       "checked": 2,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
-      "checked": 2,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
       "checked": 1,
       "verified": 0
     }
