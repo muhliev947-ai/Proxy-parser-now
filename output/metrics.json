@@ -1,46 +1,46 @@
 {
-  "timestamp_utc": "2026-09-29T12:31:43Z",
+  "timestamp_utc": "2026-09-29T19:54:14Z",
   "checked": 64,
-  "verified": 23,
-  "published": 23,
+  "verified": 20,
+  "published": 20,
   "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
-    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
-      "checked": 7,
-      "verified": 1
-    },
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 15,
+      "checked": 22,
       "verified": 6
     },
+    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
+      "checked": 5,
+      "verified": 4
+    },
     "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 22,
-      "verified": 11
-    },
-    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
-      "checked": 1,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 6,
-      "verified": 1
-    },
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
-      "checked": 1,
-      "verified": 0
+      "checked": 24,
+      "verified": 8
     },
     "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
       "checked": 2,
-      "verified": 1
-    },
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
-      "checked": 5,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
-      "checked": 4,
-      "verified": 2
+    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
+      "checked": 1,
+      "verified": 1
+    },
+    "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
+      "checked": 3,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+      "checked": 2,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+      "checked": 3,
+      "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/mfuu/v2ray@master/sub.yaml": {
       "checked": 1,
