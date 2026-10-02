@@ -1,40 +1,44 @@
 {
-  "timestamp_utc": "2026-10-01T20:15:39Z",
+  "timestamp_utc": "2026-10-02T00:37:38Z",
   "checked": 64,
-  "verified": 19,
-  "published": 19,
+  "verified": 18,
+  "published": 18,
   "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
-    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 17,
-      "verified": 5
+    "https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt": {
+      "checked": 1,
+      "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 12,
-      "verified": 3
+      "checked": 18,
+      "verified": 5
     },
     "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
       "checked": 18,
-      "verified": 7
+      "verified": 6
     },
     "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
-      "checked": 3,
-      "verified": 3
+      "checked": 1,
+      "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
-      "checked": 7,
-      "verified": 1
+      "checked": 8,
+      "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
       "checked": 2,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vless.txt": {
-      "checked": 2,
-      "verified": 0
+    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
+      "checked": 9,
+      "verified": 6
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub2.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
       "checked": 1,
       "verified": 0
     },
@@ -43,8 +47,12 @@
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 1,
+      "checked": 3,
       "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
+      "checked": 1,
+      "verified": 1
     }
   }
 }
