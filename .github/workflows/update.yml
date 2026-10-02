@@ -116,6 +116,7 @@ jobs:
     concurrency:
       group: github-pages
       cancel-in-progress: false
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -126,6 +127,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Wait for previous Pages deployment to finish
+        run: |
+          # The Pages API keeps a site-level lock independent of our concurrency
+          # group. If a previous run is still "purging_cdn", deploy-pages will
+          # poll and can hang until the job-wide timeout kills the run. Poll
+          # here with a bounded wait instead so we surface a clean error early.
+          TOKEN="${GITHUB_TOKEN}"
+          for i in $(seq 1 20); do
+            STATE=$(curl -fsSL -H "Authorization: Bearer $TOKEN" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" | python3 -c "import sys,json; print(json.load(sys.stdin).get('pages_build',{}).get('status',''))" 2>/dev/null || true)
+            if [[ -z "$STATE" ]]; then break; fi
+            echo "Pages build status: $STATE, waiting 15s..."
+            sleep 15
+          done
 
       - name: Upload docs artifact
         uses: actions/upload-pages-artifact@v3
@@ -139,6 +155,7 @@ jobs:
         # concurrency group above, so a 400 "in progress deployment" is still
         # possible when a previous run's deployment is finishing. The retry
         # step below handles it; the lock is normally released within seconds.
+        timeout-minutes: 6
         with:
           error_count: 1
           max_attempts: 5
