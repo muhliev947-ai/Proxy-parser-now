@@ -92,6 +92,7 @@ def test_build_writes_metrics_json(tmp_path, monkeypatch):
         _proxy("192.0.2.3", 443, verified=True),
     ]
     with patch("src.checker.pipeline.parse_sources", return_value=proxies), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 
@@ -114,6 +115,7 @@ def test_build_metrics_healthy_flag(tmp_path, monkeypatch):
         _proxy(f"192.0.2.{i}", 443, verified=True) for i in range(1, 4)
     ]
     with patch("src.checker.pipeline.parse_sources", return_value=proxies), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 
@@ -138,6 +140,7 @@ def test_build_writes_per_source_metrics(tmp_path, monkeypatch):
     b1.source = "https://cdn.jsdelivr.net/gh/acme/sub@main/sub1.txt"
     proxies = [a1, a2, b1]
     with patch("src.checker.pipeline.parse_sources", return_value=proxies), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 
@@ -164,6 +167,27 @@ def test_metrics_summary_includes_per_source_table():
     assert "### Per-source" in text
     assert "https://a/Z.txt" in text
     assert "https://b/sub1.txt" in text
+
+
+def test_metrics_summary_includes_per_country_table():
+    """The summary must show which countries the verified nodes are in."""
+    metrics = {
+        "checked": 3, "verified": 2, "published": 2,
+        "timestamp_utc": "2026-01-01T00:00:00Z",
+        "min_working_nodes": 1, "healthy": True,
+        "by_country": {"DE": {"checked": 2, "verified": 1}, "IN": {"checked": 1, "verified": 1}},
+    }
+    text = build_summary(metrics)
+    assert "### Per-country" in text
+    assert "| DE |" in text
+    assert "| IN |" in text
+
+
+def test_metrics_summary_no_per_country_when_absent():
+    """Old metrics.json without by_country must render without the table."""
+    metrics = {"checked": 1, "verified": 1, "published": 1, "min_working_nodes": 1, "healthy": True}
+    text = build_summary(metrics)
+    assert "### Per-country" not in text
 
 
 def test_metrics_summary_no_per_source_when_absent():
@@ -243,6 +267,7 @@ def test_build_writes_subscription_and_docs_copy(tmp_path, monkeypatch):
 
     proxy = _proxy("192.0.2.10", 443, verified=True)
     with patch("src.checker.pipeline.parse_sources", return_value=[proxy]), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         count = build(str(config_path))
 
@@ -263,7 +288,8 @@ def test_build_clears_stale_subscription_when_nothing_works(tmp_path, monkeypatc
     (tmp_path / "output").mkdir()
     (tmp_path / "output" / "subscription.txt").write_text("stale-content\n", encoding="utf-8")
 
-    with patch("src.checker.pipeline.parse_sources", return_value=[]):
+    with patch("src.checker.pipeline.parse_sources", return_value=[]), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None):
         count = build(str(config_path))
 
     # Empty-pub guard: existing non-empty subscription is preserved, not cleared
@@ -282,6 +308,7 @@ def test_build_applies_latency_sorting(tmp_path, monkeypatch):
     slow = _proxy("192.0.2.1", 443, speed_kbps=100, verified=True)
     fast = _proxy("192.0.2.2", 443, speed_kbps=900, verified=True)
     with patch("src.checker.pipeline.parse_sources", return_value=[slow, fast]), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 
@@ -296,6 +323,7 @@ def test_build_skips_sorting_by_default(tmp_path, monkeypatch):
     slow = _proxy("192.0.2.1", 443, speed_kbps=100, verified=True)
     fast = _proxy("192.0.2.2", 443, speed_kbps=900, verified=True)
     with patch("src.checker.pipeline.parse_sources", return_value=[slow, fast]), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.check_proxy", side_effect=lambda p, c: p):
         build(str(config_path))
 

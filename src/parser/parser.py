@@ -109,7 +109,11 @@ def parse_uri(value: str) -> ProxyConfig | None:
         # A standard vmess URI is vmess://UUID@host:port?params#name.
         # Only the legacy form vmess://<base64-json> needs decoding here.
         payload = raw.split("://", 1)[1]
-        looks_like_base64 = payload and not payload.startswith(("@", "[")) and not urlparse("http://" + payload).hostname
+        # urlparse() reports a "hostname" for a bare base64 blob too (it has no
+        # "@", ":" or "/", so the whole payload is treated as one), which used
+        # to skip the legacy decode and silently drop such nodes. A real
+        # standard URI always carries a "@" userinfo separator, so require it.
+        looks_like_base64 = payload and not payload.startswith(("@", "[")) and "@" not in payload
         if looks_like_base64:
             try:
                 decoded = base64.b64decode(payload + "===").decode()
@@ -163,7 +167,7 @@ def parse_uri(value: str) -> ProxyConfig | None:
         network=params.get("type") or params.get("network"), path=params.get("path"),
         host=params.get("host"), service_name=params.get("serviceName"),
         reality={"public_key": params.get("pbk"), "short_id": params.get("sid")} if params.get("pbk") or params.get("sid") else None,
-        raw=params,
+        raw={**params, "raw_uri": raw},
     )
     return config if _is_real_proxy(config) else None
 
@@ -175,7 +179,20 @@ def _from_mapping(item: dict, fallback_type: str | None = None) -> ProxyConfig |
         item = item[0] if item and isinstance(item[0], dict) else None
     if not isinstance(item, dict):
         return None
+    # Legacy vmess://base64 payloads use the v2rayN field names (add/id/ps) rather
+    # than the sing-box ones (server/uuid/name). Normalise them up front so every
+    # downstream branch sees one vocabulary. Note that v2rayN also reuses "type"
+    # for the obfuscation mode ("none"/"http"), so the protocol must come from the
+    # caller's fallback_type and the obfuscation value must not be mistaken for one.
+    if "add" in item and "server" not in item:
+        item["server"] = item["add"]
+    if "id" in item and "uuid" not in item:
+        item["uuid"] = item["id"]
+    if "ps" in item and "name" not in item:
+        item["name"] = item["ps"]
     kind = str(item.get("type", fallback_type or "")).lower()
+    if fallback_type and kind not in SUPPORTED:
+        kind = fallback_type
     if kind not in SUPPORTED or not item.get("server"):
         return None
     tls = item.get("tls", False)

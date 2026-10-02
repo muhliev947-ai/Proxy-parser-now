@@ -27,6 +27,7 @@ LOG = logging.getLogger(__name__)
 def _build_check_config(check: dict):
     """Backward-compatible alias for HiddifyBackend config construction."""
     from src.checker.checker import CheckConfig
+    gemini_cfg = check.get("gemini_probe", {})
     return CheckConfig(
         check.get("timeout_seconds", 5),
         check.get("urls", []),
@@ -35,6 +36,8 @@ def _build_check_config(check: dict):
         check.get("concurrency", 8),
         check.get("expected_status", 204),
         check.get("socks_proxy_url"),
+        gemini_probe_url=gemini_cfg.get("url"),
+        gemini_probe_timeout_seconds=float(gemini_cfg.get("timeout_seconds", 5)),
     )
 
 

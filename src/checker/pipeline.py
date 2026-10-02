@@ -26,7 +26,7 @@ from typing import Protocol
 
 import yaml
 
-from src.checker.checker import CheckConfig, check_proxy, load_hiddify_tags
+from src.checker.checker import CheckConfig, check_gemini_availability, check_proxy, load_hiddify_tags
 from src.generator.generators import (
     filter_supported_outbounds,
     sort_by_latency,
@@ -34,6 +34,7 @@ from src.generator.generators import (
     to_singbox,
     to_singbox_parallel,
 )
+from src.parser.geolocation import annotate_countries
 from src.parser.model import ProxyConfig
 from src.parser.parser import parse_sources, to_plaintext_uris
 
@@ -95,14 +96,17 @@ class HiddifyBackend:
     """Verify through a locally running Hiddify sing-box instance."""
 
     def __init__(self, check: dict):
+        gemini_cfg = check.get("gemini_probe", {})
         self._config = CheckConfig(
-            check.get("timeout_seconds", 5),
-            check.get("urls", []),
-            check.get("clash_api_url"),
-            check.get("clash_api_secret"),
-            check.get("concurrency", 8),
-            check.get("expected_status", 204),
-            check.get("socks_proxy_url"),
+            timeout_seconds=check.get("timeout_seconds", 5),
+            urls=check.get("urls", []),
+            clash_api_url=check.get("clash_api_url"),
+            clash_api_secret=check.get("clash_api_secret"),
+            concurrency=check.get("concurrency", 8),
+            expected_status=check.get("expected_status", 204),
+            socks_proxy_url=check.get("socks_proxy_url"),
+            gemini_probe_url=gemini_cfg.get("url"),
+            gemini_probe_timeout_seconds=float(gemini_cfg.get("timeout_seconds", 5)),
         )
 
     @property
@@ -167,15 +171,18 @@ class LocalSingBoxBackend:
         self._secret: str = ""
         self._instance: _Instance | None = None
         self.last_log_time: str | None = None
+        gemini_cfg = check.get("gemini_probe", {})
         # CheckConfig kept in sync so pipeline._check_with_pool can read concurrency
         self._check_config = CheckConfig(
-            self._timeout_seconds,
-            check.get("urls"),
-            None,
-            self._secret,
-            self._concurrency,
-            self._expected_status,
-            None,
+            timeout_seconds=self._timeout_seconds,
+            urls=check.get("urls"),
+            clash_api_url=None,
+            clash_api_secret=self._secret,
+            concurrency=self._concurrency,
+            expected_status=self._expected_status,
+            socks_proxy_url=None,
+            gemini_probe_url=gemini_cfg.get("url"),
+            gemini_probe_timeout_seconds=float(gemini_cfg.get("timeout_seconds", 5)),
         )
 
     @property
@@ -184,6 +191,17 @@ class LocalSingBoxBackend:
 
     def load_tags(self) -> None:
         pass
+
+    def gemini_probe_proxy_for(self, proxy: ProxyConfig) -> str | None:
+        """The node's own mixed inbound URL, if the instance still knows it.
+
+        ``None`` when the running instance was built without *proxy* (e.g.
+        after a no-op spawn) — the probe then falls back to the shared
+        SOCKS path, which is a no-op in this backend and leaves
+        ``gemini_ok`` untested rather than wrong.
+        """
+        port = self._instance.port_map.get(id(proxy)) if self._instance else None
+        return f"http://127.0.0.1:{port}" if port else None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -600,7 +618,10 @@ def _verify_one_inbound(
 def _passes_static_filters(proxy: ProxyConfig, config: dict) -> bool:
     allowed_types = config.get("types")
     countries = set(config.get("countries", []))
+    excluded_countries = set(config.get("exclude_countries", []))
     protocols = set(config.get("protocols", []))
+    if excluded_countries and proxy.country in excluded_countries:
+        return False
     return (
         (not allowed_types or proxy.type in allowed_types)
         and (not countries or proxy.country in countries)
@@ -652,27 +673,89 @@ def _check_with_pool(
     return checked
 
 
+def _gemini_probe_enabled(check: dict) -> bool:
+    """The probe is on only when a URL is explicitly configured (opt-in)."""
+    return bool(check.get("gemini_probe", {}).get("url"))
+
+
+def _run_gemini_probe(
+    proxies: list[ProxyConfig],
+    backend: CheckBackend,
+    check: dict,
+) -> list[ProxyConfig]:
+    """Probe Gemini reachability on every verified node and re-sort.
+
+    Nodes that answer a real HTTP response from the Gemini endpoint are
+    confirmed reachable — a 4xx still counts, because it proves the node's
+    IP is not blocked at the network level. Nodes that timeout or get no
+    response are marked ``gemini_ok = False`` and sink to the bottom of the
+    list. Nodes that the probe could not run on (no SOCKS path, or a
+    network error that is unrelated to the node) stay at ``gemini_ok =
+    None`` and keep their latency-sorted position.
+    """
+    verified = [p for p in proxies if p.verified]
+    if not verified:
+        return proxies
+    cfg = backend.check_config
+    # For the LocalSingBox backend the probe must flow through each node's
+    # own mixed inbound; make sure the instance is running for the final
+    # list (reverify leaves it started; a reverify-less run does not).
+    if isinstance(backend, LocalSingBoxBackend) and backend._instance is None:
+        backend.start(proxies)
+        probe_owned_instance = True
+    else:
+        probe_owned_instance = False
+    try:
+        per_node_inbound = getattr(backend, "gemini_probe_proxy_for", None)
+        for proxy in verified:
+            probe_url = per_node_inbound(proxy) if callable(per_node_inbound) else None
+            check_gemini_availability(proxy, cfg, probe_url)
+            LOG.info(
+                "gemini_probe %s (%s:%d) -> %s",
+                proxy.name, proxy.server, proxy.port,
+                "ok" if proxy.gemini_ok else ("unknown" if proxy.gemini_ok is None else "blocked"),
+            )
+    finally:
+        if probe_owned_instance:
+            backend.stop()
+    gemini_ok = [p for p in proxies if p.gemini_ok is True]
+    untested = [p for p in proxies if p.gemini_ok is None]
+    blocked = [p for p in proxies if p.gemini_ok is False]
+    LOG.info(
+        "gemini_probe: %d reachable, %d untested, %d blocked of %d final nodes",
+        len(gemini_ok), len(untested), len(blocked), len(proxies),
+    )
+    return gemini_ok + untested + blocked
+
+
 def _reverify_before_publish(
     proxies: list[ProxyConfig],
     backend: CheckBackend,
     check: dict,
 ) -> list[ProxyConfig]:
-    """Re-verify the top-N nodes right before writing the subscription."""
-    top_n = int(check.get("reverify_top_n", 10))
-    if top_n <= 0 or not proxies:
+    """Re-verify every node in the final list right before publication.
+
+    Previously only the top-N (``reverify_top_n``, default 10) were re-checked
+    and the remainder passed through on their initial-verification stamp.
+    Any node that died between the initial batch check and publication was
+    still published — which is why 34/39 published nodes were dead. The
+    full final list is now re-verified (in batches, so a LocalSingBoxBackend
+    instance restart covers the whole pool), and every node that no longer
+    passes is dropped.
+    """
+    if not proxies:
         return proxies
-    top, rest = proxies[:top_n], proxies[top_n:]
     if isinstance(backend, LocalSingBoxBackend):
         backend.stop()
-        backend.start(top)
+        backend.start(proxies)
         # start() may return a no-op instance if all candidates were dropped;
         # in that case verify_batch will mark them all failed, which is correct.
-    rechecked = backend.verify_batch(top)
+    rechecked = backend.verify_batch(proxies)
     for proxy in rechecked:
         if not proxy.verified:
             LOG.warning("Node %s (%s:%d) died before publication, dropping it: %s",
                         proxy.name, proxy.server, proxy.port, redact(proxy.fail_reason))
-    return [p for p in rechecked if p.verified] + rest
+    return [p for p in rechecked if p.verified]
 
 
 def build(config_path: str = "config.yaml", backend: CheckBackend | None = None) -> int:
@@ -696,12 +779,25 @@ def build(config_path: str = "config.yaml", backend: CheckBackend | None = None)
     docs = Path("docs")
     docs.mkdir(parents=True, exist_ok=True)
 
+    # Geolocate servers so country filters have real data to work with. The
+    # name hint is applied first, so an exclusion still works when the network
+    # is unreachable; the IP lookup then overrides wrong or missing names.
+    annotate_countries(proxies, cache_path=str(output / "geolocation_cache.json"))
+
     check = config.get("check", {})
     if backend is None:
         backend = HiddifyBackend(check)
 
     candidates = [p for p in proxies if _passes_static_filters(p, config)]
-    LOG.info("After static filters: %d candidates", len(candidates))
+    excluded_countries = set(config.get("exclude_countries", []))
+    if excluded_countries:
+        dropped = sum(1 for p in proxies if p.country in excluded_countries)
+        LOG.info(
+            "Excluded %d proxies from %s; %d candidates remain",
+            dropped, ", ".join(sorted(excluded_countries)), len(candidates),
+        )
+    else:
+        LOG.info("After static filters: %d candidates", len(candidates))
 
     backend.load_tags()
 
@@ -725,6 +821,11 @@ def build(config_path: str = "config.yaml", backend: CheckBackend | None = None)
         final = [p for p in final if _passes_final_filters(p, config)]
         if config.get("output", {}).get("sort_by_latency"):
             final = sort_by_latency(final)
+
+    # Gemini opt-in probe: run on every verified node; Gemini-capable nodes
+    # bubble to the top of the published subscription.
+    if _gemini_probe_enabled(check):
+        final = _run_gemini_probe(final, backend, check)
 
     # Publication guard: never overwrite an existing non-empty subscription
     # with an empty result.
@@ -790,11 +891,36 @@ def _write_metrics(
         "min_working_nodes": min_working,
         "healthy": published >= min_working if min_working > 0 else published > 0,
         "by_source": by_source,
+        "by_country": _by_country(candidates),
     }
+    gemini_stats = _gemini_stats(candidates)
+    if gemini_stats:
+        metrics["gemini"] = gemini_stats
     (output_dir / "metrics.json").write_text(
         json.dumps(metrics, indent=2) + "\n", encoding="utf-8",
     )
     LOG.info("Wrote metrics to %s", output_dir / "metrics.json")
+
+
+def _by_country(candidates: list[ProxyConfig]) -> dict[str, dict[str, int]]:
+    """Per-country breakdown of the candidates that reached verification."""
+    by_country: dict[str, dict[str, int]] = {}
+    for proxy in candidates:
+        code = proxy.country or "??"
+        entry = by_country.setdefault(code, {"checked": 0, "verified": 0})
+        entry["checked"] += 1
+        if proxy.verified:
+            entry["verified"] += 1
+    return dict(sorted(by_country.items(), key=lambda item: -item[1]["checked"]))
+
+
+def _gemini_stats(candidates: list[ProxyConfig]) -> dict[str, int]:
+    ok = sum(1 for p in candidates if p.gemini_ok is True)
+    unknown = sum(1 for p in candidates if p.gemini_ok is None)
+    blocked = sum(1 for p in candidates if p.gemini_ok is False)
+    if ok + unknown + blocked == 0:
+        return {}
+    return {"reachable": ok, "untested": unknown, "blocked": blocked}
 
 
 def _write_freshness_metadata(final: list[ProxyConfig], backend: CheckBackend) -> None:
@@ -822,12 +948,19 @@ def _write_freshness_metadata(final: list[ProxyConfig], backend: CheckBackend) -
         "Availability from other regions or your device may differ — "
         "for the most accurate picture, check your selected nodes in your client."
     )
+    scope_note = (
+        "&nbsp;&nbsp;🌍&nbsp;"
+        "All countries except Russia are collected; Russian servers are excluded "
+        "by the country filter. Country is determined by the server IP, not the "
+        "node name."
+    )
     meta_block = (
         f"{marker}\n      <p id=\"freshness-meta\">"
         f"Last successful check: <b>{stamp}</b><br>"
         f"Nodes: <b>{len(final)}</b><br>"
         f"By type: {breakdown or 'n/a'}<br>"
-        f"<span style=\"font-size:0.85em;color:#555;\">{region_note}</span>"
+        f"<span style=\"font-size:0.85em;color:#555;\">{region_note}</span><br>"
+        f"<span style=\"font-size:0.85em;color:#555;\">{scope_note}</span>"
         f"</p>\n"
     )
     if index_path.exists():

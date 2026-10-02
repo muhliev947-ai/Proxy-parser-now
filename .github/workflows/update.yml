@@ -2,7 +2,7 @@ name: Update proxy subscriptions
 
 on:
   schedule:
-    - cron: "0 */3 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -111,6 +111,8 @@ jobs:
     needs: update
     # Serialises Pages deployments — prevents "in progress deployment" 400 errors
     # when multiple runs (cron + dispatch + auto-commit) fire near-simultaneously.
+    # NOTE: this serialises the *jobs*, not the Pages API's own site-level lock,
+    # so deploy-pages can still hit a 400; the retry step below handles that.
     concurrency:
       group: github-pages
       cancel-in-progress: false
@@ -133,3 +135,25 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        # The Pages API keeps its own site-level lock, independent of the
+        # concurrency group above, so a 400 "in progress deployment" is still
+        # possible when a previous run's deployment is finishing. The retry
+        # step below handles it; the lock is normally released within seconds.
+        with:
+          error_count: 1
+          max_attempts: 5
+        continue-on-error: true
+
+      - name: Retry failed Pages deployment
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        id: deployment_retry
+        with:
+          error_count: 1
+          max_attempts: 5
+
+      - name: Fail if the retry also failed
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages deployment failed after retries"
+          exit 1

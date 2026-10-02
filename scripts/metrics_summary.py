@@ -78,6 +78,17 @@ def build_summary(metrics: dict, previous: dict | None = None) -> str:
             lines.append(
                 f"| `{source}` | {counts.get('checked', 0)} | {counts.get('verified', 0)} |"
             )
+    by_country = metrics.get("by_country")
+    if by_country:
+        lines.append("")
+        lines.append("### Per-country")
+        lines.append("")
+        lines.append("| Country | Checked | Verified |")
+        lines.append("| --- | ---: | ---: |")
+        for country, counts in by_country.items():
+            lines.append(
+                f"| {country} | {counts.get('checked', 0)} | {counts.get('verified', 0)} |"
+            )
     return "\n".join(lines) + "\n"
 
 

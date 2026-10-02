@@ -1,6 +1,7 @@
 import json
 import logging
 import socket
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -20,6 +21,11 @@ class CheckConfig:
     clash_api_secret: str | None = None
     concurrency: int = 8
     expected_status: int = 204
+    # Gemini reachability probe (see check_gemini_availability). Both fields
+    # default to None, which disables the probe — the legacy behaviour is
+    # preserved for every existing config file.
+    gemini_probe_url: str | None = None
+    gemini_probe_timeout_seconds: float = 5
     socks_proxy_url: str | None = None
 
 
@@ -105,6 +111,47 @@ def _verify_via_socks(proxy: ProxyConfig, config: CheckConfig) -> bool:
             return response.status == config.expected_status
     except (OSError, ValueError):
         return False
+
+
+def check_gemini_availability(proxy: ProxyConfig, config: CheckConfig, probe_proxy_url: str | None = None) -> ProxyConfig:
+    """Probe whether Google Gemini actually answers through this node.
+
+    Gemini enforces geolocation/anti-bot independently of generic internet
+    access (a node can serve YouTube/Cloudflare fine yet block Gemini), so
+    the pipeline runs this probe on every verified node and uses the result
+    to prioritize Gemini-capable nodes in the published subscription.
+
+    ``probe_proxy_url`` is the proxy that carries the probe traffic: the
+    per-node mixed inbound in the LocalSingBox backend, or the shared SOCKS
+    inbound (pointed at the node being tested) in the Hiddify backend. When
+    neither it nor ``config.socks_proxy_url`` is available the probe is a
+    no-op and ``gemini_ok`` stays ``None`` (untested).
+
+    The probe is *non-fatal*: a Gemini failure never demotes the node's
+    ``verified`` flag — it only sets ``gemini_ok = False``. A node whose
+    probe cannot run stays at ``gemini_ok = None`` (unknown) rather than
+    False, so the publisher can distinguish "confirmed working" from
+    "untested".
+    """
+    url = config.gemini_probe_url
+    proxy_url = probe_proxy_url or config.socks_proxy_url
+    if not url or not proxy_url:
+        return proxy
+
+    probe_url = url + "?_probe=1"
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
+    request = urllib.request.Request(probe_url, headers=headers, method="GET")
+    try:
+        with opener.open(request, timeout=max(config.gemini_probe_timeout_seconds, 3)) as response:
+            proxy.gemini_ok = response.status in (200, 204, 401, 403)
+    except urllib.error.HTTPError:
+        # A real HTTP answer from the Gemini endpoint means the node's IP is
+        # not blocked at network level — even a 4xx counts as "reachable".
+        proxy.gemini_ok = True
+    except (OSError, ValueError):
+        proxy.gemini_ok = False
+    return proxy
 
 
 def check_proxy(proxy: ProxyConfig, config: CheckConfig) -> ProxyConfig:

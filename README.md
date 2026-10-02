@@ -16,13 +16,13 @@ python -m src.main --config config.yaml --verbose
 
 ## Конфигурация
 
-`sources` содержит URL или пути к файлам, включая plain-text и Base64 подписки. `countries` и `protocols` пустыми значениями отключают соответствующий фильтр. `types` задаёт разрешённые типы. В секции `check` находятся timeout, URL контрольного запроса, число потоков и `max_candidates`, ограничивающий размер сетевого прогона. Формат `plaintext` является основным.
+`sources` содержит URL или пути к файлам, включая plain-text и Base64 подписки. `countries` и `protocols` пустыми значениями отключают соответствующий фильтр. `exclude_countries` отбрасывает перечисленные страны — по умолчанию `[RU]`, то есть парсятся все страны, кроме России. Страна каждого сервера определяется по IP через ip-api.com, а не по имени узла. `types` задаёт разрешённые типы. В секции `check` находятся timeout, URL контрольного запроса, число потоков и `max_candidates`, ограничивающий размер сетевого прогона. Формат `plaintext` является основным.
 
 ## GitHub Pages и Actions
 
 1. Создайте репозиторий и запушьте этот проект.
 2. В **Settings → Pages** выберите `Deploy from a branch`, ветку `master`, папку `/docs`.
-3. В **Actions** вручную запустите `Update proxy subscriptions` или дождитесь cron каждые 3 часа.
+3. В **Actions** вручную запустите `Update proxy subscriptions` или дождитесь cron — обновление каждый час.
 4. URL подписки будет `https://USERNAME.github.io/REPOSITORY/subscription.txt`.
 
 Workflow копирует обновлённые файлы из `output` в `docs`, потому что GitHub Pages обслуживает только статические файлы из ветки `master`. Не добавляйте приватные источники или секреты в `config.yaml`: подписки и GitHub Pages публичны.

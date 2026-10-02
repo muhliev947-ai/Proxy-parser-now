@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch
 
-from src.checker.checker import CheckConfig, check_proxy, load_hiddify_tags
+from src.checker.checker import CheckConfig, check_gemini_availability, check_proxy, load_hiddify_tags
 from src.parser.model import ProxyConfig
 
 HIDDIFY_CONFIG = {
@@ -181,3 +181,100 @@ def test_socks_fallback_disabled_by_default():
 
     build_opener.assert_not_called()
     assert result.verified is True
+
+
+# ---------------------------------------------------------------------------
+# Gemini availability probe
+# ---------------------------------------------------------------------------
+
+def _probe_config(url="https://gemini.google.com/"):
+    return CheckConfig(
+        timeout_seconds=1,
+        clash_api_url="http://127.0.0.1:16756",
+        socks_proxy_url="socks5h://127.0.0.1:12334",
+        gemini_probe_url=url,
+        gemini_probe_timeout_seconds=2,
+    )
+
+
+def test_gemini_probe_unconfigured_is_noop():
+    """Without gemini_probe_url the probe must leave gemini_ok untested."""
+    proxy = _proxy()
+    proxy.gemini_ok = None
+    config = CheckConfig(timeout_seconds=1, clash_api_url="http://127.0.0.1:16756",
+                         socks_proxy_url="socks5h://127.0.0.1:12334")
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        result = check_gemini_availability(proxy, config)
+    build_opener.assert_not_called()
+    assert result.gemini_ok is None
+
+
+def test_gemini_probe_no_proxy_path_is_noop():
+    """A configured URL without any proxy path must be skipped, not run direct."""
+    proxy = _proxy()
+    config = CheckConfig(timeout_seconds=1, gemini_probe_url="https://gemini.google.com/")
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        result = check_gemini_availability(proxy, config)
+    build_opener.assert_not_called()
+    assert result.gemini_ok is None
+
+
+def test_gemini_probe_success_marks_ok():
+    proxy = _proxy()
+    config = _probe_config()
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.return_value = FakeResponse(200, b"")
+        result = check_gemini_availability(proxy, config)
+    assert result.gemini_ok is True
+
+
+def test_gemini_probe_http_error_still_reachable():
+    """A 4xx answer proves the node's IP is not network-blocked — count as ok."""
+    import urllib.error
+    proxy = _proxy()
+    config = _probe_config()
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.side_effect = urllib.error.HTTPError(
+            "https://gemini.google.com/", 403, "Forbidden", {}, None)
+        result = check_gemini_availability(proxy, config)
+    assert result.gemini_ok is True
+
+
+def test_gemini_probe_network_failure_marks_blocked():
+    proxy = _proxy()
+    config = _probe_config()
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.side_effect = OSError("timed out")
+        result = check_gemini_availability(proxy, config)
+    assert result.gemini_ok is False
+
+
+def test_gemini_probe_never_demotes_verified():
+    """The probe must not touch verified/available/speed_kbps."""
+    proxy = _proxy()
+    proxy.verified = True
+    proxy.available = True
+    proxy.speed_kbps = 120.0
+    config = _probe_config()
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.side_effect = OSError("refused")
+        result = check_gemini_availability(proxy, config)
+    assert result.gemini_ok is False
+    assert result.verified is True
+    assert result.available is True
+    assert result.speed_kbps == 120.0
+
+
+def test_gemini_probe_explicit_proxy_wins_over_socks():
+    """probe_proxy_url (per-node inbound) overrides the shared SOCKS path."""
+    proxy = _proxy()
+    config = _probe_config()
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.return_value = FakeResponse(200, b"")
+        result = check_gemini_availability(proxy, config, probe_proxy_url="http://127.0.0.1:16001")
+    assert result.gemini_ok is True

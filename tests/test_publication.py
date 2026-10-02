@@ -48,6 +48,7 @@ def _run(tmp_path, monkeypatch, candidates, check, verify_fn):
 
     config_path = _config(tmp_path, monkeypatch, check)
     with patch("src.checker.pipeline.parse_sources", return_value=candidates), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.HiddifyBackend.verify_batch", side_effect=stub_batch), \
             patch("src.checker.pipeline.HiddifyBackend.load_tags", return_value=None):
         count = build(str(config_path))
@@ -134,6 +135,7 @@ def test_static_filters_run_before_verification(tmp_path, monkeypatch):
     }), encoding="utf-8")
 
     with patch("src.checker.pipeline.parse_sources", return_value=[allowed, rejected]), \
+            patch("src.checker.pipeline.annotate_countries", side_effect=lambda proxies, **kwargs: None), \
             patch("src.checker.pipeline.HiddifyBackend.verify_batch", side_effect=lambda p: verify_fn(p, 1)), \
             patch("src.checker.pipeline.HiddifyBackend.load_tags", return_value=None):
         build(str(config_path))

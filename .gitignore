@@ -3,6 +3,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 output/*.tmp
+# Локальный кэш геолокации IP (scripts/collect_india.py): ~12k записей,
+# пересоздаётся из сети, в репозитории не нужен.
+output/geolocation_cache.json
 # Локальный sing-box: в CI бинарник скачивается из релизов с проверкой SHA-256,
 # коммитить большой бинарник в репозиторий нельзя.
 sing-box

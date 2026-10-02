@@ -1,46 +1,173 @@
 {
-  "timestamp_utc": "2026-10-02T09:34:25Z",
-  "checked": 64,
-  "verified": 18,
-  "published": 18,
+  "timestamp_utc": "2026-10-02T11:25:32Z",
+  "checked": 192,
+  "verified": 8,
+  "published": 8,
   "min_working_nodes": 10,
-  "healthy": true,
+  "healthy": false,
   "by_source": {
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 23,
-      "verified": 5
-    },
-    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 25,
-      "verified": 9
-    },
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub2.txt": {
-      "checked": 3,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
-      "checked": 2,
+      "checked": 32,
       "verified": 2
     },
-    "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
-      "checked": 1,
+    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+      "checked": 5,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
+      "checked": 106,
+      "verified": 3
+    },
+    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
+      "checked": 9,
+      "verified": 2
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub2.txt": {
+      "checked": 9,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
+      "checked": 5,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+      "checked": 14,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/verified/configs.txt": {
+      "checked": 5,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/ts-sf/fly@main/v2": {
       "checked": 1,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
-      "checked": 3,
-      "verified": 2
-    },
-    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 3,
+    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
+      "checked": 1,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
-      "checked": 3,
+    "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
+      "checked": 2,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
+      "checked": 2,
+      "verified": 1
+    },
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vless.txt": {
+      "checked": 1,
       "verified": 0
     }
+  },
+  "by_country": {
+    "US": {
+      "checked": 89,
+      "verified": 3
+    },
+    "CA": {
+      "checked": 25,
+      "verified": 2
+    },
+    "JP": {
+      "checked": 10,
+      "verified": 0
+    },
+    "NL": {
+      "checked": 10,
+      "verified": 0
+    },
+    "DE": {
+      "checked": 8,
+      "verified": 0
+    },
+    "HK": {
+      "checked": 6,
+      "verified": 0
+    },
+    "GB": {
+      "checked": 6,
+      "verified": 1
+    },
+    "FR": {
+      "checked": 5,
+      "verified": 0
+    },
+    "SE": {
+      "checked": 5,
+      "verified": 1
+    },
+    "SG": {
+      "checked": 4,
+      "verified": 0
+    },
+    "CN": {
+      "checked": 3,
+      "verified": 0
+    },
+    "TW": {
+      "checked": 3,
+      "verified": 0
+    },
+    "EE": {
+      "checked": 3,
+      "verified": 0
+    },
+    "BE": {
+      "checked": 2,
+      "verified": 0
+    },
+    "QA": {
+      "checked": 2,
+      "verified": 0
+    },
+    "KR": {
+      "checked": 1,
+      "verified": 0
+    },
+    "ES": {
+      "checked": 1,
+      "verified": 0
+    },
+    "IT": {
+      "checked": 1,
+      "verified": 0
+    },
+    "PL": {
+      "checked": 1,
+      "verified": 1
+    },
+    "MY": {
+      "checked": 1,
+      "verified": 0
+    },
+    "FI": {
+      "checked": 1,
+      "verified": 0
+    },
+    "IL": {
+      "checked": 1,
+      "verified": 0
+    },
+    "MX": {
+      "checked": 1,
+      "verified": 0
+    },
+    "LT": {
+      "checked": 1,
+      "verified": 0
+    },
+    "ID": {
+      "checked": 1,
+      "verified": 0
+    },
+    "ZA": {
+      "checked": 1,
+      "verified": 0
+    }
+  },
+  "gemini": {
+    "reachable": 1,
+    "untested": 184,
+    "blocked": 7
   }
 }
