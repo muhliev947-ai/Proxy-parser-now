@@ -1,32 +1,36 @@
 {
-  "timestamp_utc": "2026-10-03T12:31:28Z",
+  "timestamp_utc": "2026-10-03T20:54:40Z",
   "checked": 64,
-  "verified": 20,
-  "published": 20,
+  "verified": 19,
+  "published": 19,
   "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
+    "https://cdn.jsdelivr.net/gh/teknovpnhub/v2ray-subscription@main/servers.txt": {
+      "checked": 3,
+      "verified": 0
+    },
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 19,
-      "verified": 2
+      "checked": 15,
+      "verified": 3
     },
     "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
       "checked": 1,
       "verified": 0
     },
+    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
+      "checked": 21,
+      "verified": 13
+    },
     "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
       "checked": 16,
-      "verified": 5
+      "verified": 2
     },
-    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 22,
-      "verified": 12
+    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+      "checked": 4,
+      "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
-      "checked": 1,
-      "verified": 1
-    },
-    "https://cdn.jsdelivr.net/gh/ts-sf/fly@main/v2": {
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vmess.txt": {
       "checked": 1,
       "verified": 0
     },
@@ -34,17 +38,13 @@
       "checked": 1,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
-      "checked": 1,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/subscriptions/mix-normal.txt": {
       "checked": 1,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
       "checked": 1,
-      "verified": 0
+      "verified": 1
     }
   },
   "by_country": {
@@ -58,15 +58,15 @@
     },
     "FR": {
       "checked": 5,
-      "verified": 4
+      "verified": 3
     },
     "SG": {
       "checked": 5,
-      "verified": 0
+      "verified": 1
     },
     "CA": {
       "checked": 5,
-      "verified": 0
+      "verified": 1
     },
     "DE": {
       "checked": 3,
@@ -74,7 +74,7 @@
     },
     "SE": {
       "checked": 3,
-      "verified": 3
+      "verified": 2
     },
     "PL": {
       "checked": 3,
@@ -110,7 +110,7 @@
     },
     "IL": {
       "checked": 1,
-      "verified": 1
+      "verified": 0
     },
     "IT": {
       "checked": 1,
@@ -122,11 +122,11 @@
     },
     "CL": {
       "checked": 1,
-      "verified": 0
+      "verified": 1
     },
     "QA": {
       "checked": 1,
-      "verified": 1
+      "verified": 0
     },
     "TR": {
       "checked": 1,
@@ -138,8 +138,8 @@
     }
   },
   "gemini": {
-    "reachable": 17,
-    "untested": 44,
-    "blocked": 3
+    "reachable": 18,
+    "untested": 45,
+    "blocked": 1
   }
 }
