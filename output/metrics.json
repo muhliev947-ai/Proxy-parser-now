@@ -1,109 +1,145 @@
 {
-  "timestamp_utc": "2026-10-03T01:11:13Z",
+  "timestamp_utc": "2026-10-03T12:31:28Z",
   "checked": 64,
-  "verified": 14,
-  "published": 14,
+  "verified": 20,
+  "published": 20,
   "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 39,
-      "verified": 6
+      "checked": 19,
+      "verified": 2
     },
-    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
-      "checked": 3,
-      "verified": 0
-    },
-    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 17,
-      "verified": 8
-    },
-    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
-      "checked": 2,
+    "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
+      "checked": 1,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+      "checked": 16,
+      "verified": 5
+    },
+    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
+      "checked": 22,
+      "verified": 12
+    },
+    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
       "checked": 1,
-      "verified": 0
+      "verified": 1
     },
     "https://cdn.jsdelivr.net/gh/ts-sf/fly@main/v2": {
       "checked": 1,
       "verified": 0
     },
-    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vmess.txt": {
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub2.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
       "checked": 1,
       "verified": 0
     }
   },
   "by_country": {
-    "JP": {
-      "checked": 24,
+    "US": {
+      "checked": 16,
+      "verified": 9
+    },
+    "CN": {
+      "checked": 5,
       "verified": 0
     },
-    "US": {
-      "checked": 20,
-      "verified": 6
+    "FR": {
+      "checked": 5,
+      "verified": 4
     },
     "SG": {
+      "checked": 5,
+      "verified": 0
+    },
+    "CA": {
+      "checked": 5,
+      "verified": 0
+    },
+    "DE": {
       "checked": 3,
       "verified": 0
     },
     "SE": {
-      "checked": 2,
-      "verified": 1
+      "checked": 3,
+      "verified": 3
     },
-    "HK": {
-      "checked": 2,
-      "verified": 2
+    "PL": {
+      "checked": 3,
+      "verified": 0
+    },
+    "FI": {
+      "checked": 3,
+      "verified": 0
     },
     "NL": {
       "checked": 2,
       "verified": 0
     },
-    "CA": {
+    "ES": {
       "checked": 2,
+      "verified": 0
+    },
+    "ZA": {
+      "checked": 2,
+      "verified": 1
+    },
+    "JP": {
+      "checked": 1,
       "verified": 0
     },
     "TW": {
       "checked": 1,
-      "verified": 1
+      "verified": 0
     },
-    "??": {
+    "HK": {
       "checked": 1,
       "verified": 0
     },
-    "DE": {
+    "IL": {
       "checked": 1,
       "verified": 1
+    },
+    "IT": {
+      "checked": 1,
+      "verified": 0
     },
     "EE": {
       "checked": 1,
-      "verified": 0
-    },
-    "PL": {
-      "checked": 1,
       "verified": 1
     },
-    "ES": {
-      "checked": 1,
-      "verified": 1
-    },
-    "BE": {
+    "CL": {
       "checked": 1,
       "verified": 0
     },
-    "FR": {
+    "QA": {
       "checked": 1,
       "verified": 1
     },
-    "MY": {
+    "TR": {
+      "checked": 1,
+      "verified": 0
+    },
+    "KR": {
       "checked": 1,
       "verified": 0
     }
   },
   "gemini": {
-    "reachable": 14,
-    "untested": 50,
-    "blocked": 0
+    "reachable": 17,
+    "untested": 44,
+    "blocked": 3
   }
 }
