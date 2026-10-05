@@ -229,13 +229,24 @@ def test_json_source_with_valid_uris_inside():
 
 def test_singbox_json_is_parsed():
     config = json.dumps({"outbounds": [
-        {"type": "vless", "tag": "node", "server": "192.0.2.11", "server_port": 443,
+        {"type": "vless", "tag": "node", "server": "192.0.2.11", "server_port": 8443,
          "uuid": "550e8400-e29b-41d4-a716-446655440000",
-         "tls": {"enabled": True, "server_name": "a.com", "reality": {"enabled": True, "public_key": "pk", "short_id": "sid"}}}
+         "tls": {"enabled": True, "server_name": "a.com", "utls": {"enabled": True, "fingerprint": "chrome"},
+                 "reality": {"enabled": True, "public_key": "pk", "short_id": "sid"}}}
     ]})
     proxies = parse_text(config)
     assert len(proxies) == 1
-    assert proxies[0].security == "reality" or proxies[0].reality is not None
+    assert proxies[0].port == 8443
+    assert proxies[0].security == "reality"
+    assert proxies[0].tls is True
+    assert proxies[0].sni == "a.com"
+    assert proxies[0].fingerprint == "chrome"
+    assert proxies[0].reality == {"enabled": True, "public_key": "pk", "short_id": "sid"}
+
+
+def test_mapping_rejects_out_of_range_ports():
+    document = "proxies:\n  - name: bad-port\n    type: trojan\n    server: node.example\n    port: 70000\n    password: secret\n"
+    assert parse_text(document) == []
 
 
 def test_unencrypted_http_and_socks_uris_are_rejected():

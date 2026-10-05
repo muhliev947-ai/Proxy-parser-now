@@ -195,23 +195,31 @@ def _from_mapping(item: dict, fallback_type: str | None = None) -> ProxyConfig |
         kind = fallback_type
     if kind not in SUPPORTED or not item.get("server"):
         return None
-    tls = item.get("tls", False)
-    if isinstance(tls, dict):
-        tls = tls.get("enabled", False)
-    reality = item.get("reality") or (item.get("tls", {}).get("reality") if isinstance(item.get("tls"), dict) else None)
-    try:
-        # Port values from sanitised YAML may carry trailing junk ("443?"), so
-        # only the leading digits are used and anything else falls back to 443.
-        port = int(re.sub(r"[^0-9]", "", str(item.get("port", 443))) or 443)
-    except (TypeError, ValueError):
-        port = 443
+    tls_config = item.get("tls")
+    tls = tls_config.get("enabled", False) if isinstance(tls_config, dict) else tls_config
+    reality = item.get("reality") or (tls_config.get("reality") if isinstance(tls_config, dict) else None)
+    if isinstance(reality, dict) and reality.get("enabled") is False:
+        reality = None
+    port_value = item.get("server_port", item.get("port", 443))
+    # Sanitised YAML may leave trailing punctuation ("443?"); keep only a
+    # leading integer rather than concatenating digits from malformed values.
+    port_match = re.match(r"^\s*(\d+)", str(port_value))
+    port = int(port_match.group(1)) if port_match else 443
+    if not 1 <= port <= 65535:
+        return None
+    server_name = item.get("server_name", item.get("servername", item.get("sni")))
+    if server_name is None and isinstance(tls_config, dict):
+        server_name = tls_config.get("server_name")
+    security = "reality" if reality else ("tls" if tls else None)
     return ProxyConfig(kind, str(item["server"]), port,
                        name=str(item.get("name", item.get("server"))), uuid=item.get("uuid"),
                        password=item.get("password"), method=item.get("cipher", item.get("method")),
-                       tls=bool(tls), flow=item.get("flow"), sni=item.get("servername", item.get("sni")),
+                       tls=bool(tls) or bool(reality), security=security, flow=item.get("flow"), sni=server_name,
                        network=item.get("network", item.get("transport", {}).get("type") if isinstance(item.get("transport"), dict) else item.get("network")),
                        path=item.get("path"), host=item.get("host"), service_name=item.get("service_name"),
-                       reality=reality, raw=item)
+                       reality=reality, fingerprint=(tls_config.get("utls", {}).get("fingerprint")
+                                                     if isinstance(tls_config, dict) and isinstance(tls_config.get("utls"), dict)
+                                                     else item.get("fp")), raw=item)
 
 
 def _decode_payload(text: str) -> str:
