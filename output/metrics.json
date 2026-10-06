@@ -1,58 +1,94 @@
 {
-  "timestamp_utc": "2026-10-04T23:02:59Z",
+  "timestamp_utc": "2026-10-06T14:12:26Z",
   "checked": 64,
-  "verified": 11,
-  "published": 11,
+  "verified": 16,
+  "published": 16,
   "min_working_nodes": 10,
   "healthy": true,
   "by_source": {
-    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
-      "checked": 7,
-      "verified": 1
-    },
-    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
-      "checked": 9,
-      "verified": 7
-    },
     "https://cdn.jsdelivr.net/gh/Ruk1ng001/freeSub@main/v2ray": {
-      "checked": 43,
-      "verified": 1
-    },
-    "https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt": {
-      "checked": 1,
+      "checked": 12,
       "verified": 0
     },
     "https://cdn.jsdelivr.net/gh/peasoft/NoMoreWalls@master/list.txt": {
+      "checked": 2,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Au1rxx/free-vpn-subscriptions@main/output/v2ray-base64.txt": {
+      "checked": 4,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/free18/v2ray@main/v.txt": {
+      "checked": 9,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/teknovpnhub/v2ray-subscription@main/servers.txt": {
+      "checked": 3,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/cbusifabcap/daily_free_vpn@master/Z.txt": {
+      "checked": 21,
+      "verified": 12
+    },
+    "https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt": {
       "checked": 3,
       "verified": 2
     },
-    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt": {
+      "checked": 4,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/MustafaBaqer/VestraNet-Nodes@main/protocols/vmess.txt": {
       "checked": 1,
       "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Leon406/SubCrawler@main/sub/share/vless": {
+      "checked": 2,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@master/sub1.txt": {
+      "checked": 1,
+      "verified": 0
+    },
+    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/Sub1.txt": {
+      "checked": 2,
+      "verified": 2
     }
   },
   "by_country": {
-    "JP": {
-      "checked": 30,
+    "US": {
+      "checked": 23,
+      "verified": 6
+    },
+    "CA": {
+      "checked": 8,
+      "verified": 4
+    },
+    "CN": {
+      "checked": 7,
       "verified": 0
     },
-    "US": {
-      "checked": 10,
-      "verified": 8
-    },
-    "SG": {
+    "JP": {
       "checked": 6,
+      "verified": 2
+    },
+    "FR": {
+      "checked": 5,
+      "verified": 4
+    },
+    "NL": {
+      "checked": 5,
       "verified": 0
     },
     "HK": {
-      "checked": 5,
-      "verified": 1
+      "checked": 2,
+      "verified": 0
     },
-    "KR": {
-      "checked": 5,
-      "verified": 1
+    "DE": {
+      "checked": 2,
+      "verified": 0
     },
-    "CN": {
+    "FI": {
       "checked": 2,
       "verified": 0
     },
@@ -60,30 +96,22 @@
       "checked": 1,
       "verified": 0
     },
-    "??": {
+    "ES": {
       "checked": 1,
       "verified": 0
     },
-    "FR": {
-      "checked": 1,
-      "verified": 1
-    },
-    "DE": {
+    "EE": {
       "checked": 1,
       "verified": 0
     },
-    "BE": {
-      "checked": 1,
-      "verified": 0
-    },
-    "AU": {
+    "CZ": {
       "checked": 1,
       "verified": 0
     }
   },
   "gemini": {
-    "reachable": 9,
-    "untested": 53,
-    "blocked": 2
+    "reachable": 16,
+    "untested": 48,
+    "blocked": 0
   }
 }
