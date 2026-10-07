@@ -2,7 +2,7 @@ name: Update proxy subscriptions
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 */5 * * *"
   workflow_dispatch:
 
 permissions:

@@ -22,7 +22,7 @@ python -m src.main --config config.yaml --verbose
 
 1. Создайте репозиторий и запушьте этот проект.
 2. В **Settings → Pages** выберите `Deploy from a branch`, ветку `master`, папку `/docs`.
-3. В **Actions** вручную запустите `Update proxy subscriptions` или дождитесь cron — обновление каждый час.
+3. В **Actions** вручную запустите `Update proxy subscriptions` или дождитесь cron — обновление каждые 5 часов (время cron указывается в UTC).
 4. URL подписки будет `https://USERNAME.github.io/REPOSITORY/subscription.txt`.
 
 Workflow копирует обновлённые файлы из `output` в `docs`, потому что GitHub Pages обслуживает только статические файлы из ветки `master`. Не добавляйте приватные источники или секреты в `config.yaml`: подписки и GitHub Pages публичны.
