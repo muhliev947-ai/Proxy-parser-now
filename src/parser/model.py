@@ -31,6 +31,7 @@ class ProxyConfig:
     tcp_reachable: bool | None = None
     verified: bool = False
     gemini_ok: bool | None = None
+    youtube_ok: bool | None = None
     fail_reason: str = ""
 
     def __post_init__(self) -> None:

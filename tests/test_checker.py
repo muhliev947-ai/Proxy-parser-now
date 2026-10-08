@@ -1,7 +1,13 @@
 import json
 from unittest.mock import patch
 
-from src.checker.checker import CheckConfig, check_gemini_availability, check_proxy, load_hiddify_tags
+from src.checker.checker import (
+    CheckConfig,
+    check_gemini_availability,
+    check_proxy,
+    check_youtube_availability,
+    load_hiddify_tags,
+)
 from src.parser.model import ProxyConfig
 
 HIDDIFY_CONFIG = {
@@ -229,8 +235,8 @@ def test_gemini_probe_success_marks_ok():
     assert result.gemini_ok is True
 
 
-def test_gemini_probe_http_error_still_reachable():
-    """A 4xx answer proves the node's IP is not network-blocked — count as ok."""
+def test_gemini_probe_http_error_marks_blocked():
+    """A service-level 4xx means Gemini did not accept the request."""
     import urllib.error
     proxy = _proxy()
     config = _probe_config()
@@ -239,7 +245,7 @@ def test_gemini_probe_http_error_still_reachable():
         opener.open.side_effect = urllib.error.HTTPError(
             "https://gemini.google.com/", 403, "Forbidden", {}, None)
         result = check_gemini_availability(proxy, config)
-    assert result.gemini_ok is True
+    assert result.gemini_ok is False
 
 
 def test_gemini_probe_network_failure_marks_blocked():
@@ -278,3 +284,31 @@ def test_gemini_probe_explicit_proxy_wins_over_socks():
         opener.open.return_value = FakeResponse(200, b"")
         result = check_gemini_availability(proxy, config, probe_proxy_url="http://127.0.0.1:16001")
     assert result.gemini_ok is True
+
+
+def test_youtube_probe_success_marks_ok():
+    proxy = _proxy()
+    config = CheckConfig(
+        youtube_probe_url="https://www.youtube.com/generate_204",
+        youtube_probe_timeout_seconds=2,
+    )
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.return_value = FakeResponse(204, b"")
+        result = check_youtube_availability(proxy, config, probe_proxy_url="http://127.0.0.1:16001")
+    assert result.youtube_ok is True
+
+
+def test_youtube_probe_rejects_service_error():
+    import urllib.error
+    proxy = _proxy()
+    config = CheckConfig(
+        youtube_probe_url="https://www.youtube.com/generate_204",
+        youtube_probe_timeout_seconds=2,
+    )
+    with patch("src.checker.checker.urllib.request.build_opener") as build_opener:
+        opener = build_opener.return_value
+        opener.open.side_effect = urllib.error.HTTPError(
+            "https://www.youtube.com/generate_204", 403, "Forbidden", {}, None)
+        result = check_youtube_availability(proxy, config, probe_proxy_url="http://127.0.0.1:16001")
+    assert result.youtube_ok is False

@@ -26,6 +26,8 @@ class CheckConfig:
     # preserved for every existing config file.
     gemini_probe_url: str | None = None
     gemini_probe_timeout_seconds: float = 5
+    youtube_probe_url: str | None = None
+    youtube_probe_timeout_seconds: float = 5
     socks_proxy_url: str | None = None
 
 
@@ -144,13 +146,31 @@ def check_gemini_availability(proxy: ProxyConfig, config: CheckConfig, probe_pro
     request = urllib.request.Request(probe_url, headers=headers, method="GET")
     try:
         with opener.open(request, timeout=max(config.gemini_probe_timeout_seconds, 3)) as response:
-            proxy.gemini_ok = response.status in (200, 204, 401, 403)
-    except urllib.error.HTTPError:
-        # A real HTTP answer from the Gemini endpoint means the node's IP is
-        # not blocked at network level — even a 4xx counts as "reachable".
-        proxy.gemini_ok = True
+            proxy.gemini_ok = 200 <= response.status < 400
+    except urllib.error.HTTPError as error:
+        proxy.gemini_ok = 200 <= error.code < 400
     except (OSError, ValueError):
         proxy.gemini_ok = False
+    return proxy
+
+
+def check_youtube_availability(proxy: ProxyConfig, config: CheckConfig, probe_proxy_url: str | None = None) -> ProxyConfig:
+    """Probe whether YouTube responds through this node, not just whether TCP connects."""
+    url = config.youtube_probe_url
+    proxy_url = probe_proxy_url or config.socks_proxy_url
+    if not url or not proxy_url:
+        return proxy
+
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36"}
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with opener.open(request, timeout=max(config.youtube_probe_timeout_seconds, 3)) as response:
+            proxy.youtube_ok = 200 <= response.status < 400
+    except urllib.error.HTTPError as error:
+        proxy.youtube_ok = 200 <= error.code < 400
+    except (OSError, ValueError):
+        proxy.youtube_ok = False
     return proxy
 
 

@@ -26,7 +26,13 @@ from typing import Protocol
 
 import yaml
 
-from src.checker.checker import CheckConfig, check_gemini_availability, check_proxy, load_hiddify_tags
+from src.checker.checker import (
+    CheckConfig,
+    check_gemini_availability,
+    check_proxy,
+    check_youtube_availability,
+    load_hiddify_tags,
+)
 from src.generator.generators import (
     filter_supported_outbounds,
     sort_by_latency,
@@ -107,6 +113,8 @@ class HiddifyBackend:
             socks_proxy_url=check.get("socks_proxy_url"),
             gemini_probe_url=gemini_cfg.get("url"),
             gemini_probe_timeout_seconds=float(gemini_cfg.get("timeout_seconds", 5)),
+            youtube_probe_url=check.get("youtube_probe", {}).get("url"),
+            youtube_probe_timeout_seconds=float(check.get("youtube_probe", {}).get("timeout_seconds", 5)),
         )
 
     @property
@@ -183,6 +191,8 @@ class LocalSingBoxBackend:
             socks_proxy_url=None,
             gemini_probe_url=gemini_cfg.get("url"),
             gemini_probe_timeout_seconds=float(gemini_cfg.get("timeout_seconds", 5)),
+            youtube_probe_url=check.get("youtube_probe", {}).get("url"),
+            youtube_probe_timeout_seconds=float(check.get("youtube_probe", {}).get("timeout_seconds", 5)),
         )
 
     @property
@@ -685,10 +695,10 @@ def _run_gemini_probe(
 ) -> list[ProxyConfig]:
     """Probe Gemini reachability on every verified node and re-sort.
 
-    Nodes that answer a real HTTP response from the Gemini endpoint are
-    confirmed reachable — a 4xx still counts, because it proves the node's
-    IP is not blocked at the network level. Nodes that timeout or get no
-    response are marked ``gemini_ok = False`` and sink to the bottom of the
+    Nodes that receive a successful HTTP response from the Gemini endpoint are
+    confirmed usable. Service-level 4xx/5xx responses are marked blocked, as
+    they mean the target did not accept the request. Nodes that timeout or get
+    no response are marked ``gemini_ok = False`` and sink to the bottom of the
     list. Nodes that the probe could not run on (no SOCKS path, or a
     network error that is unrelated to the node) stay at ``gemini_ok =
     None`` and keep their latency-sorted position.
@@ -726,6 +736,33 @@ def _run_gemini_probe(
         len(gemini_ok), len(untested), len(blocked), len(proxies),
     )
     return gemini_ok + untested + blocked
+
+
+def _run_youtube_probe(proxies: list[ProxyConfig], backend: CheckBackend) -> list[ProxyConfig]:
+    """Probe YouTube through each verified proxy and prioritize successful nodes."""
+    verified = [proxy for proxy in proxies if proxy.verified]
+    if not verified or not backend.check_config.youtube_probe_url:
+        return proxies
+    if isinstance(backend, LocalSingBoxBackend) and backend._instance is None:
+        backend.start(proxies)
+        probe_owned_instance = True
+    else:
+        probe_owned_instance = False
+    try:
+        per_node_inbound = getattr(backend, "gemini_probe_proxy_for", None)
+        for proxy in verified:
+            probe_url = per_node_inbound(proxy) if callable(per_node_inbound) else None
+            check_youtube_availability(proxy, backend.check_config, probe_url)
+            LOG.info("youtube_probe %s (%s:%d) -> %s", proxy.name, proxy.server, proxy.port,
+                     "ok" if proxy.youtube_ok else "blocked")
+    finally:
+        if probe_owned_instance:
+            backend.stop()
+    return (
+        [proxy for proxy in proxies if proxy.youtube_ok is True]
+        + [proxy for proxy in proxies if proxy.youtube_ok is None]
+        + [proxy for proxy in proxies if proxy.youtube_ok is False]
+    )
 
 
 def _reverify_before_publish(
@@ -783,6 +820,9 @@ def build(config_path: str = "config.yaml", backend: CheckBackend | None = None)
     # name hint is applied first, so an exclusion still works when the network
     # is unreachable; the IP lookup then overrides wrong or missing names.
     annotate_countries(proxies, cache_path=str(output / "geolocation_cache.json"))
+    preferred_countries = set(config.get("preferred_countries", []))
+    if preferred_countries:
+        proxies.sort(key=lambda proxy: proxy.country not in preferred_countries)
 
     check = config.get("check", {})
     if backend is None:
@@ -826,6 +866,8 @@ def build(config_path: str = "config.yaml", backend: CheckBackend | None = None)
     # bubble to the top of the published subscription.
     if _gemini_probe_enabled(check):
         final = _run_gemini_probe(final, backend, check)
+    if check.get("youtube_probe", {}).get("url"):
+        final = _run_youtube_probe(final, backend)
 
     # Publication guard: never overwrite an existing non-empty subscription
     # with an empty result.
